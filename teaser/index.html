@@ -1,0 +1,388 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Read Eval Print &lambda;ove</title>
+    <link rel="shortcut icon" href="/images/labyrinth.ico" type="image/x-icon" />
+    <script type="text/javascript" src="jquery-1.2.6.pack.js"></script>
+    <script type="text/javascript" src="jquery.pngFix.pack.js"></script>
+    <script src="jquery.lightbox_me.js" type="text/javascript" charset="utf-8"></script>
+
+    <link href='http://fonts.googleapis.com/css?family=Oldenburg' rel='stylesheet' type='text/css'>
+    <style type="text/css">
+    body {
+	background-color: #8bbb40;
+	margin: 0;
+	font-family:Arial, Helvetica, sans-serif;
+    }
+    .barWrap {
+	margin: 300px auto 0 auto;
+	background-color: #f7f7d4;
+	height: 80px;
+	border: #fff solid 2px;
+    }
+    .contentWrap {
+	width: 800px;
+	margin: 0 auto;
+    }
+    .infoBalloon {
+	margin: -200px 0 0 0;
+	width: 243px;
+	height: 230px;
+	background-image: url(balloon.png);
+	position:relative;
+    }
+    .infoBalloonContent {
+	padding: 45px 25px 0 25px;
+	font-size:20px;
+        font-family: 'Oldenburg', cursive;
+	color:#000000;
+    }
+    .successBalloon {
+	width: 146px;
+	height: 126px;
+	margin: -170px 0 0 570px;
+	position:relative;
+    }
+    .errorBalloon {
+	width: 146px;
+	height: 126px;
+	margin: -170px 0 0 570px;
+	position:relative;
+    }
+    .resultText {
+	padding: 30px 10px 0 6px;
+	margin: -130px 0 0 570px;
+	width: 146px;
+	height: 126px;
+	color: #ffffff;
+	text-align:center;
+	position: absolute;
+    }
+    .mailWrap {
+	margin: -15px 0 0 240px;
+	font-size:20px;
+	color:#000000;
+    }
+    .newsletterInput {
+	border: #C1B809 solid 1px;
+	padding: 4px;
+	font-size:24px;
+	width: 400px;
+	height: 32px;
+    }
+    .newsletterButton {
+	font-size:16px;
+        font-family: 'Oldenburg', cursive;
+	margin: 3px 0 0 114px;
+    }
+    .contactWrap {
+	margin: 20px auto 0 auto;
+	text-align:center;
+	color: #fff;
+	line-height: 24px;
+    }
+    .contactWrap A:link, .contactWrap A:visited, .contactWrap A:active {
+	text-decoration: none;
+	padding: 2px;
+	color: #f8f879; 
+    }
+    .defaultTextActive { 
+	color: #a1a1a1; 
+	font-style: italic; 
+    }
+    #video {
+        display: none;
+    }
+    #view_link {
+	font-size: 24px;
+        font-family: 'Oldenburg', cursive;
+    }
+    </style>
+    <!--[if IE]>
+	<style>
+	  .successBalloon {
+	      margin: -180px 0 0 570px;
+	  }
+	  .errorBalloon {
+	      margin: -180px 0 0 570px;
+	  }
+	  .mailWrap {
+	      margin: -35px 0 0 240px;
+	  }
+	</style>
+    <![endif]-->
+
+    <script type="text/javascript">
+    $(document).ready(function(){
+
+	$(document).pngFix();
+
+	var invalidMailError	= "E-mail is<br />not valid.";
+	var duplicateMailError	= "E-mail is<br />already in<br />the list.";
+	var systemError			= "An error<br />occurred.<br />Please try<br />again.";
+	var successMessage		= "Thank you!<br />We will email<br />you soon.";
+	
+	$(".successBalloon").hide();
+	$(".errorBalloon").hide();
+	$(".resultText").hide();
+	$(".loader").hide();
+	
+	$('form#newsletterForm').bind('submit', function(e){
+	    $(".successBalloon").hide();
+	    $(".errorBalloon").hide();
+	    $(".resultText").hide();
+	    $(".loader").show();
+	    var email  = $('input#email').val();
+	    e.preventDefault();
+	    
+	    $.ajax({
+		type: 'POST',
+		url: 'newsletter.php?email='+email,
+		data: '',
+		success: function(theResponse){
+		    $(".resultText").fadeIn("slow");
+		    $(".resultText").animate({opacity: 1.0}, 3000);
+		    $(".resultText").fadeOut(1500);
+		    
+		    if (theResponse == 1) {
+			$(".successBalloon").fadeIn("slow");
+			$(".successBalloon").animate({opacity: 1.0}, 3000);
+			$(".successBalloon").fadeOut(1500);
+			$(".resultText").html(successMessage);
+		    }
+		    if (theResponse == 2) {
+			$(".errorBalloon").fadeIn("slow");
+			$(".errorBalloon").animate({opacity: 1.0}, 3000);
+			$(".errorBalloon").fadeOut(1500);
+			$(".resultText").html(invalidMailError);
+		    }
+		    if (theResponse == 3) {
+			$(".errorBalloon").fadeIn("slow");
+			$(".errorBalloon").animate({opacity: 1.0}, 3000);
+			$(".errorBalloon").fadeOut(1500);
+			$(".resultText").html(duplicateMailError);
+		    }
+		    $(".loader").hide();
+		},
+		error: function(){
+		    $(".errorBalloon").fadeIn("slow");
+		    $(".errorBalloon").animate({opacity: 1.0}, 3000);
+		    $(".errorBalloon").fadeOut(1500);
+		    $(".resultText").html(systemError);
+		    $(".loader").hide();
+		}		
+	    });
+	});
+
+	$("#email").focus(function(srcc) {
+	    if ($(this).val() == $(this)[0].title) {
+		$(this).removeClass("defaultTextActive");
+		$(this).val("");
+	    }
+	});
+	
+	$("#email").blur(function() {
+	    if ($(this).val() == "") {
+		$(this).addClass("defaultTextActive");
+		$(this).val($(this)[0].title);
+	    }
+	});
+	
+	$("#email").blur();       
+
+        $('#view_link').click(function(e) {
+           $("#video").lightbox_me({centered: true, destroyOnClose: true});
+           e.preventDefault();
+        });
+    });
+    </script>
+  </head>
+  <body>
+  <!-- The Temptation of Saint Anthony -->
+  <!--
+                                                        .tttjjjtttttjtttjttttttttjttttjjjjjtjttjjtjj
+                                                        .tjjtjtjjjtjjttjjjjtjtjtttttttjjjtjjttjtjtjt
+                                                        .ttjtjjtjjjtjjttjjjttjtttttjjtttttjjttjjjjtj
+                                                        .jjjjttjjttjttttjjjttjjjtjtjttjjttjtjttjjjjj
+                                                        .tjjtjtjjtjtjttjtttjtjtjttttjjjjjtjttttttjjt
+                                                        .jjjjjjjtjjttjjttjtjtttjtjjjtjtjtjtjjjttjjjj
+                                                        .ttjjjtjttjtttttijtjttjjtjttjjtjtjtjttttjjtt
+                                                        .tjjjjttjtjttjjjtjtttjjttjttjtjttttjttjtjjtj
+                                                        .ttjjjjtjjtttttjtttjjtijjttttttjtttttjjjjtjt
+                                         ..:;,,D.:      .ttttjtttttttjtttttttjjtjjjttjjtttjjjtjttttt
+              Think                   fjEDEEDEDKEKDDWfj .ttttttttjtttjtttjtttttjjttttjtttjtttjtjtjjt
+                                   ;EDEEEEEKEEKEDKEKEEDEDjtittttttttjttttttijttjjtttttttjjjtjjjjjtjt
+                                :jLGEGKKKEKEKKEKKKKKKEEKKEGDtttittttttttttttttttjtttttjttjttjjtttttj
+                              GEEDDEEKKEKKKEDEEKEKEKKKKEWKKKELiittttiitttttjjtjttttttttttjtjjttttjtt
+                            ,;DEEDKEEKEEKEEKEEEEKDKEKKWKEKEWKKDitiitttttttttttttttttttjttttjtttjtjtt
+                           iLEDEEDDKKDKEEDDGDDEEDEEKKWKKKKKKWKKKjtiitttttttttttttttttittttttjttjjjjt
+                         .jEGEDEDEEDEEDLGEGEEDDDDDEEKKKKKKKKWKKWKE;ttitttttttttttjttttttjtjtttttjttj
+                         iKDGEELDDDGDGGLGGGDDDGDLGEEKEKKKKKKKKKKWEDtttttttttttttitttjttttttttjtjtjtt
+                       .jDEDDDDDDGGGDLLLLLLLLLLLLGEDDEEEKKEWEKWKWKKDjttitttttitttttttjttttttttjjtjtt
+                       ijDEEDGGEDDLLfjLjffffLLLLfLDDKEEKKKKKKKWWWKKEfttititttttttttjtttttttttttjjjtt
+                      tGGGGLLGLGGLfjjjttfffffLLLLLLGGEDWKKKKKWKKWWWEKjjtittittitttttttttttttttjttttt
+                     .iGGfLGDGGGffttttttjfLffLffLfLGLEEKKKEEKWKKKKWKKKftittttttttttjjtttttttttjtjjjj
+                  ...,tfGLGLLLffjjtttttjjffLLLGLLLGDDDEEKKKKKWKKWKKWKKDfittttttttttttttttttjjtjttttt
+             ........,;ijLjjjjjjtjttjttjffLLGLLfLLLLGDEEEEKKKKWKKWKWWKKKjitttittttttttjtttttjjtttjjj
+..................:::,,;itjjtttttttttttfjfLfLLLLLGGLGDDEEEKWKKKKWKEWKWKDfittttttttttttttjijttttjtttj
+...........::::::,,,,,,;iiitttttttitttjtjjffLLLfLLLGGGEEDEKKKKEKEWWKWWWELftttttttitttttttttttjtttttt
+........::::,,,,,,;,,;;iiittitttttttttjtjffffLLLLGGGDDEEEEEKKKKKKKWKWWWWKDjitttttttittttttttjjjitjjt
+.......::,,,,,;;;,;;,;;iitiittttitijtttjjjfLLLGGLGLDDDDEDEEEWKKKKKWEWWWWKWGiiititttttittttttttjtttjt
+.......::,;;;;;;,;;;,iiiiiittiitttittjjjjfjfLGGLGGGDGLDEEEEKKKEKWKWWKWKWKWEttitttttttttttttttttttjtj
+.......:,,;;;;;;,;;;,;iiiiiitttjttjttjtjjffLGGLLGGDGEDGEEEDEKKKKWKKWWWKWWWKjttititttttttttttttttttjj
+......:::;;;;;;;;;,;;;iiitiittttttttttjttjffLGGLGGGGDDDDEEEEKWEKWKKKKWWWWWEftttttttttttittttttttjtjt
+.....:.:,,;;,;;;;;;:,ii;iiiittttttttjtjtjjffLGGLLDDDDDDDDKEEKKEWKWKKKWWWWWKjtttttttttjjttttjtjjtttjt
+.......::;;;i;;;;i;,iiitiittttttjtttjjjjtjjLLGGGGGDGDGDDDEEEEKKWKKKEWWKWWKWKtitttitttttttttttijttttt
+......::,;;;;;;;;;,,;iiitiitttitttttjjjjtjjfGGGGGDGGDGDEDDEKKKWKEKEKWWWWKWWKjittiitttttitttttjttjjit
+...:.:.:,,;;;;;;;;;;iiiittitttttttjtjjjtfjffLGLLGLLGGGDDDEEKEEKKKKKKWWWWWWWKLittttttttttttttttittttt
+::::...::,;;;;i;;;,;;i;tittiittjtjjjtjjjjjffGLLGGGGGGGGGGDKEKKKEKKKWWKWKWWWWLititttttttttttttttttttt
+.::...::,,;;;;;;;;,iiiiittittijttjjjjjjtjjffLGGGGGGGLGGGGDEKEKKEKKEKWWKWWWWWDiittttttttttitttttttttt
+:::...::,;;;;;;;;;;i,iitiititttttffjjffffLfLLLGGDGDGGLDGGDDEKKKKKEKKKKWKWWWKKiiiittttttttttttttttjtt
+...:.::::;;;;;;i;;,;;;itttttttjjjffffLLGGGLLGGGDGGLDGGGDGDEEWKKKKKEWKWWWWWWWWittttttttittttjtttjjttt
+::::::::,,;;;;;;;;,;;iiitttiitjffLGGGGGDDEDGEDDDGGGGGGDGGGEEKKKKKKKKWWLGLKWWWttttittjttjtttttttttjjj
+.:::::::,;;;;;i;;i,;iitiittttjjLGDDEDEGGDGDGDEDDDGDGGGGGDGDKKEKKKWKWEGLGGGWWKttitttttttttjttttttjtjj
+:::::::,,,;;;;i;,;:;ttittttttjjGDEEEfffLLGGGGDDDGDGGGGGGDDDEEKKWKEKDGLEKEEGWEiiitttttttttjtttttjtttj
+::,,:::,,;,;;;i;i;:ifjtttttttjLGDEDLfjtjjfffLLLGGGDGGGGGGDEEDKKKKKDLLEDDEDLKKiiitittttittttttttttttj
+:::,,::,,;;;;;;;i;ijfLLjjjttjLGDDDGLGEDEEKKKjfffLGGGDDGDDDDKKKWWEDGGDELLKDGGWtttttttttttttittttttttt
+:,:::::,,;;;;;;;;,jGGGLLjjtjLfLGDDGGDEfKEEGEDDGLGfGGGDGDDDEEKKKKDGGDDGLLDEGGWjtttttttttttttttttttttt
+,,:::::,;;;;;;;,;;fGfjjfffttjfLGDDDDDDGffjjfLLffLfGLLDDDDDDEKKEKDDEDWGLfLEGLWtttttttittttttttttjtttt
+::::::::,;;;;i;;;;ffitjGEGftjfLGDGLGLLfjjjjjffffjLLLGDDDDDDDEEEEEDDDKDGLfELWWKtittttttittttttttttttt
+:::::...:,;i;;;;;;;ttDDELGLijfGDDGLLLLfLfttjjjffLLLGGDEDDDDDDEEEEDEEEGGLLEDWWLitittttjtttttttjtttttt
+:........,;;;;;i;;;;jDLEELtttfLGDLLLffjjjttjtjjffLLGGDDDEDDEDDEDDDKEDGGLLEKWWKtttttttttttitttttjtttj
+:.......:,;;;;;;;;;;tELfjj;tjLGGGGGffffjjjtjjjfffLGGGDDEDDDDEEEDEGGEGLGfDDKWWWjtttttittttttttttttttj
+:::.::..:;i;;;i;;;i;;jittjijjLGGLLLfjfjjjjjtjtjfffGDDDEDEDEEEEDDDGGKEGLLDDWKWWttttttttttttttjttttttt
+::::::::;;;;;;;i;;i;;,;ijtitfLGGLLLffjtfjtjjjfjffLGDDDDDEDDDDEEDEDKELLfDDEKWWWWtitttttittitttttttttt
+:::::::,;;i;i;;;;;i;;:;;itijfGGGGLLfjtttttjjjfffLLGGDDDDDDEEEDDDEDEffGGDDKWKWWftttttittjtjtttttttttt
+::::::::,;;;;;;;i;;;;,;itijtfGGGLGLfjttjttjjfjLfLfLGDGEDEDDDDEDEEELfLLLDEKKWKWftittttttttttitttjtttj
+::::...:,;i;;;;;;;;;;,;ti;ttfLGGLGGLfjttjjjjjfffGLLGDDDEDDDEDDEEEKGfGGGDKEKKWWGjititttttttttttttjjjt
+::::....:,;ii;;;;;i;;;;i;itjLLDGLLGDLjjttjtffjfLLLGGGDDDDDDEDEEEEELLLLDEEKKKWWGttttittttttttttjttjtt
+,,::....:,;;;;;;;;;;;;ii:tttfLGLGLGGGfjjjjjffjfLLGLGGDGDDEDDEEEEEEGGGEKEEEKKKKDttitttttttttttttttttt
+;;,::...:,;;;;;;;;;;;;;;itjjLLDGLDGDEfjjtjjjjffLGLGGGGGDDDEDEEEEEKKEDEEDEEEEKKKitttttttttttttttttttt
+i;,:::.::;;;;;;;;i;;;;;;ittjLGDGLLGDEfjjjjfffffLLGLGGGDDDDDDEEEEKEEEDDDDEEEEKEDititttttttttjtttttttt
+ti;,,,::,;;;;;;;;;;;;;,iijjjGGEKEDKEGfjjjjtLfffLfLGGGDGEDDEEEEEEEEEDDDDDEKDEEKtittttttttttttttttjttt
+jii;;;;;;;;;;i;;i;;;;;;iiijjLGGDDDDGLfjjjjtjfffLLLLDDGDDDEEDEKKEEEEGGGDGDDDEEEDttttttttttttttttttttt
+tttiiitii;;;;;;;;;;;;;;iitiifffLDGGGGfLfjjjjjfLfGLLGGGDDEDEEEEEEEEEEGGDDDEDEEEKttttttttttiittttttttt
+ittittttti;;;;;;;;;;;;;;iiitfjffLLLGLLLLjjtjjLfLLLLDGGDDEEDEKKEEEDEGGGGDDDEEKEEtttitttttttttjttttttj
+tittjjLjti;;;;;;;;;;;;;;iiitjfftLLfLLLGfffjjfLLfGLLLGGGDDEEEEKEEEEDDGGGDDEDEEKEitttttiitittitttttttt
+tttjLGGfti;;;;i;;;;;i;i;;;;tjjfjfLLLLfLffffffLLfGLLGGGDDDEEEEEKEKKDDGGGGDDDEDEKtDiittttttttttttttttt
+tjjLLGGLti;;;i;i;;;;i;i;;;iiijjjjjffLGLLffffffffLGLGGDDEDEEKEKKKDEDGGGGDDDEDEEWEWW;tttttttttttittttt
+LLLGDDDLt;;;;;;;;;;;;;;;;ii;tjjfffLLLLGDfjfGjfLLLLLGGDEDDDEEKKKKEEGGGGGDGEGDDWKWWWWiitttittttttttttt
+GDDDEEDft;;;;;i;;;;;;;;;;iiijjfLLGGDDEKEGfjjfLLLGGLGDDDEEEEKKEKEKEGGGGEGDEEDKEWWWWWLtttitttttttttttt
+DDDEEDGfi;;;;;;;;;;;;i;;;itttLGEGGDGGDDLLffjfLfDLGDGDEDEEKEKKEKEEDDGLDLGEGDDEWWWWWWWWtittttttttjtttt
+DDDDEDDLt;;;;;ii;;;;;i;;;;jLijLLLGGGLGGffffLLLLDGGLDGDEEKEEKKKKEDGGLGDGDGDDKWWWWWWWWWKW;ittttttttttt
+DDDEDDDfti;;;;i;i;;i;i;;;;tjtffLLGLffLLffffLfLGLGGGGEDEKEKKKEKEKGGGLDLDGDGDWWWWWWWWWWWWWiijjtttttttt
+GEEEDGLtiii;;;;;;;;ii;i;;;titjjjjfLLfffffLLfLLGGGGGDDEKKKKKKWKEGGLLDfLGGDDWWWWWWWWWWWWWWitjttttttttt
+fDEEGLti;i;;;;i;;;;;;;;iiii;tjfjjfLfffffLLLfGGGLGGDGEEEEKKEEEEDDLGGGLGLDGEWWWWWWWWWWWWWWWtttitttttjt
+iLEGGji;;;;;ii;;ii;i;i;;;;iiijfjfffffffLLLLLGGGLGGDDEEEKKKEEEDDGGGGLGLGGDWWWWWWWWWWWWWWWWWD;itttittt
+,;tji;,,,;;;;ii;iiii;iii;;;iitjjjfjfffLLGfGGDGDDDDDDEKKKKKEEDGGGLGGLGGGGWWWWWWWWWWWWWWWWWWW#ittttttt
+::,;,:::,;iiii;iii;;i;i;ii;;iijffjffjffLGGLGGGDDDDEKEKKEEDEDDGGGDLGGLLLEWWWWWWWWWWWWWWWWWWWWWKtttttt
+...:....:,ii;ii;;ii;;;;ii;iiiitfffffffLGLGLGDDDGDDEEKEKEKDDGLLLLGLLLLLGWWWWWWWWWWWWWWWWWWWWWWKWKtttt
+........:,iiii;iii;iii;;iii;iitjjfLfLfGGLGGDDDEEEDEEEEEEDDGGLLGLLLLfLLDWWWWWWWWWWWWWWWWWWWWWWWWWKitt
+   ....:,;ii;ii;iiiii;i;i;;iiijjjffffLLGGDGDDDEEKEKEEDDDDGLfLLLfLfLLfLEWWWWWWWWWWWWWWWWWWWWWWWWWWKEt
+ .....:,;ii;;iii;iiiii;;;ii;iitjfjLfLLGGGGDDEKKKKEEDDDDGDGLLLfffffffLLWWWWWWWWWWWWWWWWWWWWWWWWWWWWWK
+....:,;itiiiiiiii;i;i;ii;iiiittjjfjfLLGLGEDEEEKKEEDGDGDDLGLGfLLfLfLfGEWWWWWWWWWWWWWWWWWWWWWWWWWDWWWK
+::,;itjjtti;i;;;ii;iii;iiiiiittjjffLLfGLGDEEEEEEEDGGDDDGLLGfjffffLffLWWWWWWWWWWWWWWWWWWKWWWWWWWWWWWW
+;itfLfffji;;ii;;i;;iiiiiiiiiitjtfffffLLGGDEEKEDDGGGDDDGGLfffffLfffLLWWWWWWWWWWWWWWWWKWWKWWWWWWWWWWWW
+itfLGGGfti;i;;;i;iiiiiiiii;;iitttjffLLGDDDEDDGGGGGGGGGGGLffffffjffLWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+LLGGDGGLjiii;;iiiiiii;iiiii;ii;jjjffLfLLGGDtffLLLLGLGGGLLfjffLjffffWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+DEEEDDGGtii;;;iii;;;i;ii;ii;iiii;;iLfLfi;i;;ijfLLfLfLLLfffjLfffjffWWWWWWWWWWWWWWWWWWWKWWWWWWWWKWWWWW
+fLGLjffjti;ii;iiii;i;i;i;iiiiiiiiiiii;ii;iiiiijfffffLLGfjjjjfjjjj#WWWWWWWKWWKWWWWWWWWWWWWWWWWWWWWWWW
+;;;;,,,i;iiiiiiiiiiii;iii;iiiiiiiiiiiiiiiiiiiiitfffjjfjfjjjjjjjfEWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWW
+,,,::::,;;iiiiiii;iiiii;;iiiiiii;iiiii;iii;iiiiitffjjfjtfjtjtjjjWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:::::.:::;iiiiiiiiiiiii;iiiiiiiiiiiiiitiiiiiiiiiiijjjjjfjttjttt#WWWWWWWWKWWWWWWWWWKWWWWWWWWWWKWWWWWW
+:::::..::,iiii;iiii;iiiiiiiiiiiiiiiiiiiiiiiiiiiiittttjjjttttttWWWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::.:,;iiiiiiiiii;iiiiiiiiiiiiiiiiiiiiiiiiiiiiiittititttttiWWWWWWWWKKWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::.::;iiii;ii;iiiii;ii;iiiiiiiiiiiiiiiiiiiiiiiiiitiiittti#WWWWWWKWWWWWWWKWWWWKWWWWWWWWWWWWWWWWWW
+::::::::,;iiiiiiiiiiiii;iiiiiiiiiiiiiiiiiiiiiiiiitiiiiiitiit#WWWWWWKWWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;tiiiiiiiiii;iiiiiiiitiiitiiitiiiiiitiiiiiiiiiiiitGWWWWWKWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;ttiiiiiiiiiiiit;iiiiitiiiiiiiitittiiitiiititiiiiLWWWWWWKWWWWKWWWWWWWKWWWWWWWWWWWWWWWWWWWWW
+::.::.::,;ittiiiiiiiiiiiiiit;iiiiiitiiitiiiittttitittit;tiWWWW#WWWWWWKWWWWKWWWWWWWWWWWWWWWWWWWWWWWWW
+::.:::.::;ttiiiiiiiiiiiitiiiiii;ii;itiiiiiiitiiiititttW#tWWWWWWWWKKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::.:.::;tiiiitiit;iiiiitiiiiiiiiitiiiittiiiiittiiitt#KWWWWWWWWWKWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+.::.::::,;iitiiitiiiiitiiiiiiitiiiitiiiiitiiitiiiiiiiWKWWWWWWWWWKWWKWWWWWWWWWWWWKWWWWWWWWWWWWWWWWWWW
+:::::::::;itiiiiiiiitiiiiiiiiiiiiiiiiiiiiiii;;i;;iiiDKKWWWWKWWKWWKWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;tiiiiiiiii;iiiiiiitiiiiiiiiiiiii;;;;;;iiiiDWWWWWKWWKKWWWWWKKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;ttiiiiiiiiiiiiiiiiiiiiiiiittiti;,,,,;;iiiitKWWWW#WWKKWWWWWWWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,,iitiiit;iiiiiiiiitiiii;iiiiiiii;,;i;,;;ii;;GWWWKWWKWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::..:,iiiitiiiiiiiiiiii;iiiiiiiiiiit;;;;;;;;;;;;;:WWKWWWKWWKKWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWK
+::::::.:,,itiiiiiiiiiiiii;;;;ii;i;ii;ii;i;;;;;i;;,,,,,WKWW#WWWKKWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;i;iiiii;iiiiii;;;;;;iiii;;i;;ii;;;;;;;;,,,,,WKWWWWWWKWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::.::;tiii;;i;;;;;;;;;;;;,;,;;;;;;;;;i;;,;;;;;,,,:WWW#WWWEWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;iti;;;;;,,,,,;,;;,,,;;;;;,;;;;tii;;i;;i;,,,,KW#KWWEWWWWKKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;itiii;i;;,,,,,,;;,,,,;;;;;;;;itttii;;;;;,,,,EWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;iiiiiiiti;,;,;,;;,,,,;;;,i;;iijttj;;;;;i;,;;WWWW#WWWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::::::::,;iiii;ittti;;,;;,,,,;;,;;;;;;;ifjjtt;,;;;;,;,WKWWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWKWWW
+::::::::,;iiiiittttti;,,,,,,,,,,,,;;;;iittttii;;;,,,iKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:::::::::;iiiitiiiit;;,,,,,,,,,,,,,,,;;;;iitiii;;,,;;KKWWWWWWWWWKWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:::::::::;iiiittitiii;;;,,;;,,,,::,,,,;,,;,;iiii,,,;;KWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:::::::::;tii;itittjjii;;i;;,,,,,,,,,,,,,,,;;i;;;;;iGKWWWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:::::::::;tttiiiiitfftiiitii;;;,,;,;,,,;,,,;;;,,;,;iWEKWWWWWWWWWWWKKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:.:::::::;tjjii;;ijfLjttjjjiti;;;;;,;,,;,,;;,,,,,,,;WKWWWWKWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+.::::::,,;jfjti;;;tffLjjfjjttit;;,,,,,,,;;;,,,:,,,;;#WWWWKWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+:::,,,,,iitjfji;;;tfLfjfffttiii;,,,,,,,,;i;;;;,,,,;tWWWWKKWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+::,;iitittjjfjtitijjLGLLLLti;,;,,,,,,,,,;;;;;,;;;;iiWWWWWWWKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+  -->
+<!-- Prolog im himmel -->
+    
+    <div class="barWrap">
+      <div class="contentWrap">
+	<div class="infoBalloon">
+	  <div class="infoBalloonContent">
+	    &nbsp;(soon<br />
+	    &nbsp;&nbsp;&nbsp;(&lambda;ove<br />
+	    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(print <br />
+	    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(eval <br />
+	    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(read)))))
+	  </div>
+	</div>
+
+	
+	<div class="mailWrap">
+	  <form action="#" name="newsletterForm" id="newsletterForm">
+	    <input type="text" name="email" id="email" class="newsletterInput" title="e.g. you@awesomeness.org"/>
+	    <input type="submit" value="notify me" 
+		   class="newsletterInput" 
+		   style="background-color: #f7f7d4; 
+			  color: #C1B809;
+			  border-top: 2px solid #C1B809; 
+			  border-right: 2px solid #C1B809; 
+			  border-bottom: 2px solid #C1B809; 
+			  border-left: 2px solid #C1B809;
+			  width: 140px; height: 40px;
+			  font-family: 'Oldenburg', cursive;
+			  font-weight: bold;" />
+            <span class="loader"><img src="loading.gif" alt="loading" /></span>
+	  </form>
+	</div>
+	
+	<div class="successBalloon"><img src="success.png" alt="success" />
+	  
+	</div>
+	<div class="errorBalloon"><img src="error.png" alt="error" />
+	</div>
+	<div class="resultText"></div>
+      </div>
+    </div>
+    <div class="contactWrap">
+      If you would like to receive an email when we launch, then enter you email address above and clickity.<br />
+      Follow me on Twitter <a href="http://www.twitter.com/fogus" title="Follow">@fogus</a>
+      <br />
+      <br />
+      <a href="#" id="view_link"> &gt;&gt; click for a taste &lt;&lt; </a>
+      <div id="video">
+	<iframe width="560" height="315" src="http://www.youtube.com/embed/HB6HvhOw_MY" frameborder="0" allowfullscreen></iframe>
+      </div>
+    </div>
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+var pageTracker = _gat._getTracker("UA-921112-2");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+  </body>
+</html>
