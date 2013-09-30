@@ -100,7 +100,7 @@ Under these conditions, what current languages are Lisps?  Which fall short? [^m
 
 [^repl]: Think REPL.
 
-[lisp-fu]: http://www-formal.stanford.edu/jmc/lisp20th.html)
+[lisp-fu]: http://www-formal.stanford.edu/jmc/lisp20th.html
 
 [^more-lisp]: I'll come back to this list in future installments. Stay tuned.
 
