@@ -1347,3 +1347,9 @@ Robert R. Fenichel , Jerome C. Yochelson, A LISP garbage-collector for virtual-m
 
 Paul Graham. 2002. Roots of Lisp. http://www.paulgraham.com/rootsoflisp.html
 
+Pascal Costanza , Richard P. Gabriel , Robert Hirschfeld , Guy L. Steele, Jr., Lisp50: The 50th birthday of lisp at OOPSLA 2008, Companion to the 23rd ACM SIGPLAN conference on Object-oriented programming systems languages and applications, October 19-23, 2008, Nashville, TN, USA
+
+John McCarthy, A basis for a mathematical theory of computation, preliminary report, Papers presented at the May 9-11, 1961, western joint IRE-AIEE-ACM computer conference, May 09-11, 1961, Los Angeles, California
+
+Guy Steele. Growing a Language. Keynote at the 1998 ACM OOPSLA conference.  https://www.youtube.com/watch?v=_ahvzDzKdB0
+
