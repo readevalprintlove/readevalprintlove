@@ -8,8 +8,6 @@ calibris: n. The insistence that tech is a pure meritocracy.
 
 chewbris: n. An outmoded management style based around intimidation, threats of firing "if you can't get this done" and making veiled criticisms and rude comments immediately proceeded by "just kidding."
 
-clojbris: n. The insistence that some concept is so important that a) everyone should already understand it and b) therefore it should not be explained.
-
 dubris: n. The condition of being so high that re-implementing some framework sounds like a great idea.
 
 ewbris: n. see Not-Invented-Here
@@ -28,6 +26,8 @@ n00bris: n. The pride of a newcomer to enter a new programming community and imm
 
 oopris: n. The idea that even though you don't know what OOP means, you'll know it when you see it.
 
+prebris: n. The insistence that some concept is so important that a) everyone should already understand it and b) therefore it should not be explained.
+
 protubris: n. That ugly utility class holding all of the methods that should have been functions, but weren't allowed to be.
 
 q-bris: n. Pride so deep that one feels the need to jump all over anyone skeptical of your views.
@@ -42,8 +42,3 @@ Viewbris: n. The excessive pride of the MVC framework author.
 
 Wu-bris: n. The idea that all value measurements must occur through a commerce-colored lens.
 
-### Related terms
-
-cumbris: n. A testing framework supporting business speak, but that actually  sticks the user with a fragile domain-specific balancing act.
-
-pubris: n. The pride that comes with being young and not realizing that computers were designed to help people think better, not just do the same old menial labor faster.
