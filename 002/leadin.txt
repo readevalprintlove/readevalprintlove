@@ -1,0 +1,4 @@
+# A note
+
+*Read-Eval-Print-λove is an N-monthly newsletter of original content and curation about the Lisp family of programming languages and little-languages in general.*
+

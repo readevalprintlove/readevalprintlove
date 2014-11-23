@@ -1,0 +1,27 @@
+# Final thoughts
+
+I hope you've enjoyed this installment - it was a long time coming. Please do not hesitate to reach out via the contact information below to discuss and provide feedback.  All issues of Read-Eval-Print-λove are meant to be "living" in the sense that they can and will change as new ideas occur to me and feedback is provided.  The essays herein can and will become all the better with your help.
+
+Thank you.
+
+# Author information and links
+
+[Michael Fogus](http://www.fogus.me) — a core contributor to
+[Clojure](http://www.clojure.org) and [ClojureScript](http://www.clojurescript.net).  Creator of [programming source codes](https://www.github.com/fogus).
+
+A fervent blogger at [Send More Paramedics](http://blog.fogus.me) and also co-author of the book, *[The Joy of Clojure](http://www.joyofclojure.com)* and author of *[Functional JavaScript](http://www.functionaljavascript.com)*.
+
+**Author contact**
+
+* <http://www.fogus.me>
+* <http://www.twitter.com/fogus>
+* <https://www.github.com/fogus>
+* me -at- fogus -dot- me
+
+**Discussion and information**
+
+* <http://www.readevalprintlove.org>
+* <https://www.github.com/readevalprintlove>
+* <http://www.lispforum.com/>
+* <https://groups.google.com/forum/#!forum/ll-next>
+

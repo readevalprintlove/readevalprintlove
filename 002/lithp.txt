@@ -1,0 +1,1340 @@
+Lithp
+=====
+
+In late 2008 I had an idea to write a database in [Clojure](http://www.clojure.org). I had just discovered Clojure and wanted a project to cut my teeth on. At the time, my previous true exposure to Lisp was during my college years and that exposure was constrained to XLISP, Common Lisp and various Schemes. I had hacked away at a bit of ELisp after college, but even that was done in the spirit of immediacy. I knew that I wanted to try Clojure, but I wanted to learn more than just its API. What I wanted was to learn why it existed in the first place.
+
+To get to an understanding of why Clojure was created I decided to start at the beginning.  In hindsight that might not have been the most efficient way of coming to an answer.  That said, what came out of that exploration[^explore] was that my database turned into a tiny Lisp interpreter named [Lithp](https://www.github.com/fogus/lithp),[^lithpinc] written in Python.[^py] 
+
+The Lithp interpreter provides the absolute core functions of McCarthy's original ideal, as outlined in his classical paper, *Recursive functions of symbolic expressions and their computation by machine, part I*. That is, there are only seven functions and two special forms.
+
+[^py]: The choice for Python was one of practicality, as at that time I was using it extensively on day-job activities.
+
+[^explore]: Frankly, the exploration continues and will continue for the foreseeable future.
+
+[^lithpinc]: This code-base is at times in flux and may or may not always match the implementation detailed herein.
+
+The magnificent seven
+---------------------
+
+ * atom
+ * car
+ * cdr
+ * cond
+ * cons
+ * eq
+ * quote
+
+Two special forms
+-----------------
+
+ * label
+ * lambda
+ 
+In addition to the magnificent seven and the two special forms I'll also implement a variant of Lithp called Lithp' using Lithp itself.
+
+Implementation notes
+--------------------
+
+If you're not familiar with Python then I apologize.  I've tried to write as clear code as possible, but much of the style is circa 2008-2010 Python.  If you're interested in helping to maintain and/or modernize the Lithp code-base then please do consider sending Github pull-requests to the repository at https://github.com/fogus/lithp.
+
+The code herein is structured and described at the level of individual Python modules and Lisp source.  The parts that I will cover are as follows:
+
+1. atom.py   - Code implementing and dealing with symbols
+2. env.py    - Code implementing dynamic binding and lookup
+3. fun.py    - Code implementing lambda functions
+4. lisp.py   - Code for the maginificent seven
+5. lithp.py  - Code implementing the Lithp REPL and code processor
+6. reader.py - Code implementing a Lisp reader
+7. seq.py    - Code implementing pseudo-Cons-cells via Python lists
+8. core.lisp - Lisp in Lithp
+
+I will not go over the entirety of the implementation because the code is both freely available and there are some parts that have nothing to do with Lispiness.  That is, the code discussed in this installment are the interesting bits.
+
+With all of that said — let's begin.
+
+The best place to start learning about Lithp and its implementation of McCarthy's original vision is probably the env.py source file, which implements Lithp's dynamic binding environment.
+
+env.py
+------
+
+The `Environment` class represents the dynamic environment of McCarthy's original Lisp.  The creation of this class is actually an interesting story.  As many of you probably know, [Paul Graham wrote a paper and 
+code for McCarthy's original Lisp](http://www.paulgraham.com/rootsoflisp.html) [^pg] and it was my first exposure to the stark simplicity of the language.  The simplicity is breath-taking -- not to put too fine a point on it.
+
+[^pg]: Back in the day when Graham actually wrote about Lisp.  Sadly, his Lisp illumination has all but died off, but I suppose I can understand -- there's no money in it.
+
+However, while playing around with the code I found that in using the core functions (i.e. `null.`, `not.`, etc.)  I was not experiencing the full effect of the original.  That is, the original Lisp was dynamically scoped, but the Common Lisp used to implement and run (CLisp in the latter case) Graham's code was lexically scoped.  Therefore, by attempting to write high-level functions using only the magnificent seven and Graham's core functions in the Common Lisp
+I was taking advantage of lexical scope; something not available to McCarthy and company.  Of course, the whole reason that Graham wrote `eval.` was to enforce dynamic scoping (he used a list of symbol-value pairs where the dynamic variables were added to its front when introduced; which I will adopt later):
+
+    (eval. 'a '((a 1) (a 2)))
+    ;=> 1
+
+So I then implemented a simple REPL in Common Lisp that fed input into `eval.` and maintained the current environment list.  That was fun, but I wasn't sure that I was learning anything at all.  Eventually I decided to try to implement my own core environment for the magnificent 7 to try and get a feel for what it took to build a simple language up from scratch.  I suppose if I were a purist then I would have found an IBM 704, but  that would be totally insane. (email me if you have one that you'd like to sell for cheap)
+
+Anyway, the point of this is that I needed to start with creating an `Environment` that provided dynamic scoping, and the result is monstrosity [^mons] described herein.
+
+[^mons]: As far as Ur-Lisps go, this is not too much of a monstrosity if I do say so myself -- my [implementation of Lisp in 25 lines of Ruby](https://github.com/readevalprintlove/ulithp) however...
+
+{lang="py"}
+    
+	class Environment:
+	    def __init__(self, par=None, bnd=None):
+	        if bnd:
+	            self.binds = bnd
+	        else:
+	            self.binds = {}
+	    											
+	        self.parent = par
+	    												
+	        if par:
+			    self.level = self.parent.level + 1
+	        else:
+	            self.level = 0
+
+The code fragment above sets up the dynamic binding environment by establishing a contextual binding map named `binds` that is a simple lookup from a `Symbol` type (described later) to a Lithp value type (e.g. a `Lambda` or `Symbol`).  In addition, the stack discipline of classical dynamic binding if is emulated through the `parent` link.  The parent link is simply an instance of another `Environment` or `None` if the constructed environment is considered a root binding context.
+
+This dynamic stack discipline is on full display when one attempts to lookup a binding within an `Environment`:
+
+{lang="py"}
+    
+	    def get(self, key):
+		    if key in self.binds:
+			    return self.binds[key]
+			elif self.parent:
+			    return self.parent.get(key)
+	        else:
+			    raise ValueError("Invalid symbol " + key)
+
+The first check in a dynamic lookup is always to see if a binding exists in the current context.  However, ultimately retrieving a binding potentially requires the traversal of the parent link, as shown in the `elif` case of the lookup check.  You can see that this lookup descends down a chain of `Environment` instances until a binding is found, or the search bottoms-out at a root context.  This is the simplest possible binding scenario and naturally the one that McCarthy and his team settled on for the initial Lisp interpreter.
+
+Now that you understand the lookup of a dynamic binding, the establishment of a new binding should not be a mystery:
+
+{lang="py"}
+    
+		def set(self, key, value):
+		    if key in self.binds:
+		        self.binds[key] = value
+		    elif self.parent:
+		        self.parent.set(key,value)
+		    else:
+			    self.binds[key] = value
+
+That is, the process of creating a new binding is symmetric to the process of finding.  
+
+There are or course useful functions that make the process of dealing with Environments more straight-forward:
+
+{lang="py"}
+    
+	    def definedp(self, key):
+	        if key in self.binds.keys():
+	            return True
+	        return False
+								
+The `definedp` method just traverses the binding stack and returns `True` or `False` if the binding is found, or not, respectively.
+
+### Manipulating the dynamic environment stack
+
+You may recall that the constructor of the `Environment` class took a preexisting binding and assigned it as the `parent` link.  This, for all of its faults is a stack.  Likewise, the logic of the `#put` and `#get` methods ensured that these links were traversed when creating and looking up a binding.  Rather than manipulating the `Environment#parent` links directly via construction, I decided to create a convenience method `#push` that returns a new `Environment` instance given an existing instance.  Perhaps this is is unnecessary, but I personally find this approach a little cleaner.
+
+{lang="py"}
+    
+        def push(self, bnd=None):
+	        return Environment(self, bnd)
+
+Again, whenever a variable is created it's binding is pushed onto a global stack.  In this case, the stack is simulated through a chain of parent links.  So if you were to create the following:
+
+{lang="lisp"}
+    
+    (label a nil)
+    (label frobnicate (lambda () (cons a nil)))
+     
+    ((lambda (a)
+       (frobnicate))
+     (quote x))
+
+ Then the stack would look like the figure below within the body of  `frobnicate`:
+
+     |         |
+     |         |
+     | a = 'x  |
+     | ------- |
+     | a = nil |
+     +---------+
+ 
+Meaning that when accessing `a`, `frobnicate`  will get the binding at the top of the stack, producing the result `(x)`.  This push/pop can become difficult, so people have to do all kinds of tricks to avoid confusion (i.e. pseudo-namespace via variable naming schemes — if you've ever written classic ELisp, then maybe you'll remember this approach).
+
+Of course, any time you see a push, a pop is soon to follow:
+
+{lang="py"}
+    
+        def pop(self):
+	        return self.parent
+
+And that's it for the `Environment` class.  Looking back on this code it astonishes me how simple the dynamic environment scheme is — elegant almost.  Maintaining the current train of thought, I'd like to explore how the dynamic environment interacts with Lisp functions, both anonymous and not.
+
+fun.py
+------
+
+As you might have imagined, McCarthy's Lisp derives much of its power from the function.  The `Function` class is used exclusively for *built-in* functions (i.e. the magnificent seven).  Each core function is implemented as a regular Python method, each taking an `Environment` and its arguments.
+
+{lang="py"}
+    
+    class Function(Eval):
+        def __init__(self, fn):
+	        self.fn = fn
+						
+		def eval(self, env, args):
+	        return self.fn(env, args)
+
+The implementation of the default function class is as simple as can be.  That is, I'm cheating a bit and delegating the functionality of execution out to a Python function or lambda.  However, bear in mind that this is just the tip of the iceberg.  Lisp really gets interesting.
+
+The real power of McCarthy's Lisp springs from the influence of Alonzo Church's λ-calculus.  While the original Lisp implementation was not entirely adherent to the dictates of the λ-calculus, the spirit of Church was in attendance.  First, the initializer of the `Lambda` class is trivial:
+
+{lang="py"}
+    
+    class Lambda(Eval):
+        def __init__(self, n, b):
+            self.names = n
+            self.body =  b
+
+Interestingly, every invocation of a lambda causes its bound variables to be pushed onto the dynamic bindings stack.  McCarthy only touches briefly on the idea that combining functions built from lambda is problematic.  In almost a throw-away sentence he states, "different bound variables may be represented by the same symbol. This is called collision of bound variables."  If you take the time to explore core.lisp (described later herein) then you will see what this means in practice. The Elisp-like named variables should provide a hint.  
+
+Of course, the reason for these difficulties is a direct result of dynamic scoping.  McCarthy suggests that a way to avoid these issues is to use point-free combinators to eliminate the need for variables entirely.  This approach is a book unto itself -- which is likely the reason that McCarthy skips it.  That said, 
+
+{lang="py"}
+    
+        def push_bindings(self, context, values):
+            context.push()
+            self.set_bindings(context, values)
+
+The bindings are set one by one corresponding to the input values.
+
+{lang="py"}
+    
+        def set_bindings(self, context, values):
+	        for i in range(len(values)):
+			    val = values[i].eval(context.environment)
+                context.environment.binds[self.names[i].data] = val
+
+The evaluation of a `Lambda` instance is not much more complicated than a built-in function, except that it will establish bindings in the root context.  Additionally, the root context will hold all bindings, so free variables will also be in play.
+
+{lang="py"}
+    
+        def eval(self, env, args):
+	        values = [a for a in args]
+			
+	        if len(values) != len(self.names):
+	            raise ValueError("""Wrong number of args, 
+				                 expected {0}, got {1}"""
+                                 .format(len(self.names), len(args)))
+
+OK, so I throw an exception here... sue me.  It's arg-arity checking, not rocket science -- but I digress.  Dynamic scope requires that names be bound on the global environment stack:
+
+{lang="py"}
+    
+            LITHP = env.get("__lithp__")
+
+First exceptions, now a big honking global variable.  Not only that, but this is the global to usurp all other globals.  That is, the dictionary stored at `env.get("__lithp__")` contains all of the top-level bindings for the entire Lithp system.  While horrifying in its abruptness, the global dictionary is a fairly straight-forward way to represent the same global dynamic environment found in the original Lisp implementation.  That being the case and since I have a handle to the global stack, I just go ahead and push some bindings on to it:
+
+{lang="py"}
+    
+            self.push_bindings(LITHP, values)
+
+If you're like me when reading this for the first time you might be thinking "OMG" or maybe "ZOMG."  That reaction is pure and wise and never lose that sense of danger.  Having said that, it's important to know that when Lisp was originally created no one knew about any of the SOLID principles (not even McCarthy) nor had Wulf and Shaw penned their perennial classic *Global Variables Considered Harmful*.  Self-referential programming system had to be created by gum, and they weren't going to sit around and write themselves (yet).
+
+So I've pushed all of the bindings onto the global dynamic stack, so they're accessible to the body of the lambda, so why not go ahead and use them?  I will.  In fact, each form in the body is evaluated one by one, and the last determines the return value:
+
+{lang="py"}
+    
+            ret = FALSE
+	        for form in self.body:
+	            ret = form.eval(LITHP.environment)
+
+The evaluation context for the lambda body is of course the global, dynamic context.  Therefore, all applications occur at the discretion of the ever changing dynamic bindings.  However, it's not enough to just willy-nilly push bindings onto the dynamic context; I also must remove exhausted bindings when I'm done with them.  In the case of the lambda, the exhausted bindings are simply those that were set as the result of passing values as arguments:
+
+{lang="py"}
+    
+            LITHP.pop()
+	        return ret
+
+And that effectively cleans up the lambda execution context.
+
+### Closures in brief
+
+McCarthy's Lisp does not define closures and in fact the presence of closures in the context of a pervasive dynamic scope is problematic.  However, this fact was academic to me and didn't really map conceptually to anything that I had experienced in the normal course of my programming life.  Therefore, I added closures to see what would happen.  It turns out that if you thought that bound variables caused issues then your head will explode to find out what closures do.
+
+As a thought-experiment I can visualize why this is the case.  That is, while a closure captures the contextual binding of a variable, look-ups in dynamic scoping occur on the dynamic stack.  This means that you may be able to close over a variable as long as it's unique, but the moment someone else defines a variable of the same name and attempt to look up the closed variable will resolve to the top-most binding on the dynamic stack.  This assumes the the lookup occurs before the variable of the same name is popped.
+
+Function dispatch in the context of a dynamic environment swings from elegant to, frankly, weird.  The true elegance of Lisp is yet to come.  One such piece of elegance is next in the idea of a "cons cell" and what I like to call "The Magnificent Seven."
+
+lisp.py
+-------
+
+As mentioned earlier, the original Lisp described by [McCarthy in his 1960 paper](http://www-formal.stanford.edu/jmc/recursive.html) describes the following function set:
+
+   1.  `atom`
+   2.  `car`
+   3.  `cdr`
+   4.  `cond`
+   5.  `cons`
+   6.  `eq`
+   7.  `quote`
+
+Plus two special forms:
+
+   1.  `label`
+   2.  `lambda` 
+
+The `Lisp` class defines the magnificent seven in terms of the run-time environment built thus far (i.e. dynamic scope, lambda, environments, and symbols, which are not detailed herein) and aggregated in a `Lisp` class starting thus:
+
+{lang="py"}
+    
+	class Lisp:
+
+The magnificent seven are thus implemented as methods on this class.
+
+### `eq`
+
+Equality is delegated out to the objects being tested, so I will not discuss the mechanics here.  
+
+However, examples of usage are as follows:
+
+{lang="lisp"}
+    
+    (eq nil (quote ()))
+    ;=> t
+
+    (eq (quote (a b)) (quote (a b)))
+    ;=> t
+
+    (eq (quote a) (quote b))
+    ;=> ()
+
+The most expedient way to achieve this kind of equality was to simply delegate it to Python:
+
+{lang="py"}
+    
+    def eq(self, env, args):
+        if args[0].eval(env) == args[1].eval(env):
+            return TRUE
+	    return FALSE
+
+Re-evaluating on each equality check is less than ideal, but I'm not writing this on an IBM 704, so what me worry?  Sure, `eq` is cool and all and while implementing programming languages equality is non-trivial I'm not going to say much on the subject here.  However, I do have more to say on the matter of Lisp's original data abstraction -- the cons cell.
+
+### The humble cons cell
+
+The original Lisp implementation was written for the IBM 704 by Steve Russell (a genius of the highest order -- also the creator/discoverer of [Spacewar!](http://pdp-1.computerhistory.org/pdp-1/?f=theme&s=4&ss=3) and continuations).  The somewhat obtuse name for a function that returns the first element of an s-expression derives from the idiosyncrasies of the IBM 704 on which Lisp was first implemented.  The `car` function was thus a shortening of the term "Contents of the Address part of Register number" that in itself has a very interesting explanation.  That is, `car` was used to refer to the first half of the word-size addressed by the IBM 704.  In this particular machine (and many others at that time and since) the word-size could address more than twice of the actual physical memory.  Taking this particular nuance of the IBM 704 into account, programmers were able to efficiently create stacks by using the address of the stack's top in one half-word and the negative of the allocated size in the other (the "Contents of Decrement part of Register number"), like so:
+
+     +----------+----------+                                          
+     |   top    |   -size  |                                          
+     +----------+----------+                                          
+          |           |        size goes toward zero                  
+          |           |                  |                            
+          |           |                  |                            
+          |           |                  v                            
+      |   |    |      |                                               
+    4 |   |    |      |                                               
+      |   V    |      |                                               
+    3 | elem3  |      |                                               
+      |        |      |                  ^                            
+    2 | elem2  |      |                  |                                 
+      |        |      |                  |                                 
+    1 | elem1  |<-----+           stack grows up                          
+      |        |
+    0 | elem0  |
+      +--------+
+
+Whenever something was pushed onto the stack the number `1` was added to both half-words.  If the decrement part of the word became zero then that signaled a stack-overflow, that was checked on each push or pop instruction.  However, the use of the car/cdr half-words was used quite differently (McCarthy 1962).  That is, The contents part contained a pointer to the memory location of the actual cons cell (see the documentation for the next function `cdr` for more information) element, and the decrement part contained a pointer to the next cell:
+
+    +----------+----------+    +----------+----------+
+    |   car    |   cdr    |--->|   car    |   cdr    | ...
+    +----------+----------+    +----------+----------+
+
+The Lisp garbage collector used this structure to facilitate garbage collection by marking referenced chains of cells as negative (sign bit), thus causing them to be ignored when performing memory reclamation.
+
+### `car`
+
+That said, the `car` function works as follows:
+
+{lang="lisp"}
+    
+    (car (quote (a b c)))
+    ;=> a
+
+In Lithp, the car of an empty list is an error.  I actually have no idea if this was the case in McCarthy's original, but I'm beyond corrupted by modern software development practices that I can't even see straight anymore:
+
+{lang="py"}
+    
+    def car(self, env, args):
+        if(len(args) > 1):
+            raise ValueError("""Wrong number of arguments, 
+			                 expected {0}, got {1}"""
+							 .format(1, len(args)))
+
+Of course, I don't use pointer arithmetic to implement cons cells...
+
+{lang="py"}
+    
+        cell = args[0].eval(env)
+        
+...instead I define it in terms of a "sequence abstraction" (not shown herein).  This is a side-effect of a hope in going further with this implementation (e.g. into Linear Lisp), but as of now it's a bit heavy-weight for what is actually needed.  
+
+Interestingly, there are real implications to my design decision over McCarthy's.  That is, the Lithp sequences delegate insertion to the Python `List` implementation which internally is built on arrays (CPython anyway).  The arrays backing the `List`s are geometrically re-sized when new elements are added and thanks to some simple pointer arithmetic elements can be added to the end of a list simply.  Therefore, inserting new elements to a Python `List` is an amortized O(1) operation.  However, McCarthy's cons cell design and implementation guaranteed that insertions at the head of a list were O(1) operations.  That is, the very nature of a cons cell was such that it was composed of two parts: a data part (CAR) and a link part (CDR) which were just pointers.  Interestingly, the registers of the IBM 704 were twice the word size, so both the CAR and CDR parts fit into one register, split into "address" and "decrement" parts as mentioned above.
+
+The data part was the thing actually contained in the cell and the link part pointed to (potentially) another cons cell.  Therefore, to add an element to the head of a list required a cons cell allocation and a link manipulation that made it point to the head element of the host list.  However, in the Lithp implementation adding to the head of a List not only requires an occasional array size adjustment, but it also requires that elements in the existing array be shifted down the array one at a time to make room for the new element -- an O(n) operation.  
+
+
+But I wouldn't be a programmer if I didn't needlessly abstract:
+
+{lang="py"}
+    
+        if not isinstance(cell, Seq):
+            raise ValueError("""Function not valid on 
+			                 non-sequence type.""")
+
+        return cell.car()
+
+The internal sequence type used by Lithp is a useful tool, but it loses much of the elegance found in the original cons cell abstraction.
+
+### `cdr`
+
+In the previous function definition (`car`) I used the term cons-cell to describe the primitive structure underlying a Lisp list.  If you allow me, let me spend a few moments describing this elegant structure, and why it's such an important abstract data type (ADT).
+
+Lisp from the beginning was built with the philosophy that lists should be a first-class citizen of the language; not only in the realm of execution, but also generation and manipulation.   If you look at my implementation of `List` in [seq.py](seq.html) you'll notice that it's pretty standard fare.  That is, it, like most lisp implementations is backed by a boring sequential store where one element conceptually points to the next and blah blah blah.  **Boring**.  Where the cons-cell shines is that it is a very general purpose ADT that can be used in a number of ways, but primary among them is the ability to represent the list.
+
+Lists in the early Lisp was precisely a chain of cons cells and the operators `car` and `cdr` pointed to very specific implementation details that over time became generalized to mean "the first thing" and "the rest of the things" respectively.  But the fact remains that the cons cell solves a problem that is often difficult to do properly.  That is, how could Lisp represent a container that solved a number of requirements:
+
+ * Represents a list - car is piece of data, cdr is another cons cell
+ * Represents a pair - car is a piece of data, cdr is a piece of data
+ * Represents a terminator - car is the cell itself, cdr is the cell itself
+ * Implementation efficiency - O(1) adds to the front
+ * Heterogeneous - datum are wrapped in a generic container type
+
+It would be interesting to learn the precise genesis of the idea behind the cons cell, but I imagine that it must have provoked a eureka moment.
+
+I've already discussed how the IBM 704 hardware was especially amenable to solving this problem efficiently, but the other points bear further consideration.  Lisp popularly stands for "LISt Processing language" but as I explained, the basic unit of data was instead the cons cell structure.  The fact of the matter is that the cons cell serves as both the implementation detail for lists **and** the abstraction of a pair, all named oddly as if the implementation mattered.  If Lisp had originally gone whole-hog into the abstraction game, then `car` and `cdr` would have been `first` and `rest` and would have spared the world decades of whining.
+
+Modern implementations of Lisp rarely implement lists as chains of cons cells anymore.  Indeed, you can probably tell a lot about the level of knowledge for a Lisp programmer by the way that they construct and access lists.  For example, a programmer like myself whose exposure to Common Lisp has been entirely academic, you will probably see a propensity toward the use of `car` and `cdr` instead of leveraging the more expressive sequence abstractions -- but I digress.
+
+The `cdr` function works as follows:
+
+{lang="lisp"}
+    
+    (cdr (quote (a b c)))
+	;=> (b c)
+    
+    (cdr (quote ()))
+	;=> ()
+	
+The implementation of `cdr` is as follows:
+
+{lang="py"}
+    
+    def cdr(self, env, args):
+        if(len(args) > 1):
+            raise ValueError("""Wrong number of arguments, 
+			                 expected {0}, got {1}"""
+							 .format(1, len(args)))
+
+        cell = args[0].eval(env)
+
+        if not isinstance(cell, Seq):
+            raise ValueError("""Function not valid on 
+			                 non-sequence type.""")
+
+        return cell.cdr()
+
+There's a lot of checking in this implementation, but the gist is that I eval the cons cell and take the tail of it.
+
+As I mentioned in the previous section, by using the sequence type as the base abstraction I lost much of the elegance in the original cons cell design.  The `cdr` implementation makes this loss more clear.  That is, while taking the cdr of a traditional cons cell is simply a matter of returning a new pointer to the link part of a cell, the Lithp implementation requires that a new `List` instance be created with a copy of the contents of the original, minus the first element.
+
+### cons
+
+So if Common Lisp has a more general sequence abstraction, then why would we still want to keep the cons cell?  The reason is that the cons cell is more flexible than a sequence and allows for a more intuitive way to build things like trees, pairs, and to represent code structure.  Indeed, it's the last point that allows the fulfillment of one of John McCarthy's chief characteristics of what defines Lispiness:
+
+ > One of the major characteristics of Lisp is that Lisp programs are
+ > Lisp data and one can compute with Lisp programs present in the
+ > machine without parsing.
+ >
+ > -- JMC, 1998.02.08 on comp.emacs and comp.emacs.xemacs
+
+Indeed, later in this installment I'll build Lithp (and its hosted language Lithp') programs directly using simple Lithp data functions and structures.  
+
+For now, the `cons` function simply delegates the matter of consing to the target object.
+
+The `cons` function works as follows:
+
+{lang="lisp"}
+    
+    (cons (quote a) nil)
+    ;=> (a)
+
+    (cons (quote a) (quote (b c)))
+    ;=> (a b c)
+
+    (cons (quote a) (quote b))
+    ;=> Error
+
+I've agonized long and hard over whether or not to implement McCarthy Lisp as the language described in *Recursive functions...* as the anecdotal version only partially described in the *LISP 1.5 Programmer's Manual* and in most cases the former was my choice.  The creation of "dotted pairs" (I believe) was not an aspect of the original description and therefore is not represented in Lithp.  Sadly, I think that in some cases these version are mixed because I originally went down the path of creating a version of Lithp compatible with Linear Lisp and Lisp 1.5, so this is a product of some pollution in the varying ideas.  That said, the implementation of `cons` is as follows:
+
+{lang="py"}
+    
+    def cons(self, env, args):
+        if(len(args) > 2):
+            raise ValueError("""Wrong number of arguments, 
+			                 expected {0}, got {1}"""
+							 .format(2, len(args)))
+
+        first = args[0].eval(env)
+        second = args[1].eval(env)
+
+        return second.cons(first)
+
+The eager nature of `cons` is apparent in that both the added element and the target are evaluated before the operation is performed.
+
+The cons cell is an extremely powerful ADT, but it's not the only kind of data type that was available in the original Lisp.  While its supported structures were humble, they were added to support a certain paradigm: symbolic programming.
+
+### atom
+
+In addition to the aggregating cons cell, Lisp provided additional atomic types that were singularly representative; that is, they could not be taken apart.  The bridge between these two data classes, aggregating and atomic, was the `atom` function that was used to identify atomic types.
+
+The `atom` function checks if its argument is an atom and returns a truthy value if it is.  One thing to note is that the empty list `()` is considered an atom because it cannot be deconstructed further.
+
+The `atom` function works as follows:
+
+{lang="lisp"}
+    
+    (atom (quote a))
+    ;=> t
+         
+    (atom nil)
+    ;=> t
+         
+    (atom (quote (a b c)))
+    ;=> ()
+
+Note that the null cons cell (i.e. empty list) is a falsey value in Lithp and the original Lisp.
+
+{lang="py"}
+    
+    def atom(self, env, args):
+        if(len(args) > 1):
+            raise ValueError("""Wrong number of arguments, 
+			                 expected {0}, got {1}"""
+							 .format(1, len(args)))
+
+        first = args[0].eval(env)
+
+        if first == FALSE:
+            return TRUE
+        elif isinstance(first, Symbol):
+            return TRUE
+
+        return FALSE
+
+Again, `atom` is another eager function in that it must evaluate its argument to determine if it's an atomic data structure.  However, the last of the magnificent seven, `label` disables evaluation in a way that's in the spirit of `cond`, but that operates towards a very different purpose.  But first, I'll cover a function called `quote` that provides a way to avoid evaluation altogether.
+
+### `quote`
+
+The `quote` built-in does one thing -- it returns exactly what was given to it without evaluation:
+
+{lang="lisp"}
+    
+     (quote a)
+     ;=> a
+     
+     (quote (car (quote (a b c))))
+     ;=> (car (quote (a b c)))
+
+Of course, the result of `quote` can itself be evaluated explicitly:
+
+{lang="lisp"}
+    
+    (eval (quote (car (quote (a b c)))) (quote ()))
+    ;=> a
+
+The implementation of `quote` couldn't be more simple:
+
+{lang="py"}
+    
+    def quote(self, env, args):
+        return args[0]
+
+The `quote`, function, while interesting in its own right, is mechanical to implement and directly supported by the Lithp infrastructure built so far.  However, a more interesting ... thing ... I'll not call it a function, is called `label`.
+
+### `label`
+
+Notice that in the following implementation of `label` the first argument (hopefully a symbol) is **not** evaluated.  This is the key difference between a Lisp function and a special form (and macro, but I will not talk about those here).  That is, in *all* cases the arguments to a function are evaluated from left to right before being passed into the function. Conversely, special forms have special semantics for evaluation that cannot be directly emulated or implemented using functions.
+
+{lang="py"}
+    
+    def label(self, env, args):
+        if(len(args) != 2):
+            raise ValueError("""Wrong number of arguments, 
+                             expected {0}, got {1}"""
+                             .format(2, len(args)))
+        
+        env.set(args[0].data, args[1].eval(env))
+        return env.get(args[0].data)
+
+Finally, the last of the magnificent seven is another lazy operator named `cond`.[^cond]
+
+[^cond]: There is no particular reason that a primordial Lisp needs to implement `cond`, in fact something like `if` would work just as well.
+
+### `cond`
+
+Did you know that McCarthy discovered conditionals?  This is only partially true.  That is, Stephen Kleene defined the notion of a *primitive recursive function* and McCarthy built on that by defining the conditional as a way to simplify the definition of recursive functions.
+
+How would you define a recursive function without the use of a conditional in the terminating condition? It turns out that you *can* define recursive functions this way (see fixed point combinators), but the use of the conditional form `cond` vastly simplifies the matter.
+
+We take conditionals for granted these days so it's difficult to imagine writing programs that were not able to use them, or used a subset of their functionality.
+
+The `cond` form is used as follows in the original Lisp:
+
+{lang="lisp"}
+    
+    (cond ((atom (quote (a b))) (quote foo)) 
+          ((atom (quote a))     (quote bar)) 
+          (t (quote baz)))
+     
+    ;=> bar
+	
+The implementation is as follows:
+
+{lang="py"}
+    
+        def cond(self, env, args):
+            for test in args:
+		        result = test.car().eval(env)
+					
+			    if result == TRUE:
+			        return test.data[1].eval(env)
+
+            return FALSE
+
+Each head (`car`) of the `cond` clauses is tested for truthiness, and as soon as one is such the tail of the corresponding clause is evaluated.  Note that the `TRUE` and `FALSE` values are set to `Symbol("t")` and `List()` within Lithp.  As you might surmise then, the `cond` form is lazy in its evaluation.  This kind of lazy evaluation is not found in the original λ-calculus, so this is a major departure by McCarthy.  You see, even in the early days of computing there were thoughtful trade-offs between practicality and abstractness... though, now that I think about it, McCarthy was operating in a purely academic environment when developing Lisp, so it's safe to say that the original was in no way appropriate for modern web apps.
+
+In any case, you might have noticed that I skipped over one of the maginificent seven, specifically the `lambda` special form.  While I talked about the underlying class `Lambda`, there's a little more work to properly create instances of it, which I'll talk about in the next section.
+
+Lithpiness
+----------
+
+In this the section of my Lisp implementation I'll cover various bits and pieces that pull all of the core pieces together into an actual language run-time.  That is, this section describes briefly the implementation of the REPL and the `lambda` special form.
+
+First I'll start with the `Lithp` class, which is the interpreter driver, performing the following:
+
+  1. Initialize the global environment
+  2. Parse the cl arguments and act on them as appropriate
+  3. Initialize the base Lisp functions
+  4. Read input
+  5. Evaluate
+  6. Print
+  7. Loop back to #4
+
+Numbers 4-6 above are the steps involved in the implementation of the Lithp REPL -- **R**ead, **E**val, **P**rint, **L**oop.  First, allow me to talk about the act of reading.
+
+### `Reader`
+
+The implementation of the Lithp `Reader` class is not exactly thrilling.  You have to really like the art of lexing to find that kind of stuff interesting.  I wrote the thing and I'm only mildly interested in it.  What I'm trying to say is that it's a mess.  However, like most Lisp readers, the Lithp reader is much more interesting in its behavior.  Within the Lithp interpreter, the reader is created as such:
+
+{lang="py"}
+    
+    rdr = reader.Reader()
+	environment = Environment()
+
+The `environment` variable is a stand-in for the Lithp global environment and is merely used for illustrating evaluation principles herein.  The first principle that I'd like to discuss is that the `Reader` class takes in strings and returns Lithp data structures:
+
+{lang="py"}
+    
+    sexpr = rdr.get_sexpr("a")
+	sexpr.__class__
+	#=> <class atom.Symbol at 0x10b7bd050>
+
+The code above shows that the string `"a"` will be read as a Lithp `Symbol` instance.  This is nothing terribly ground breaking in the world of Lisp, but there is a point that I'd like to make about it.  Very often you'll hear or read that this language or that language has a REPL; however, very few languages have REPLs where the **R** stands for a reader such as what you'll find in Lisp.  Lisp-like readers take in a textual representation of a piece of code and return a Lisp data structure.  What's so interesting about that.  Indeed, if you run something like `eval(":foo")` in Ruby you'll get back a symbol instance correct?  The difference between Lisp and many other languages is that the act of converting strings to types is separate from the act of evaluating them.
+
+In many languages there is no reading step at all.  Instead, languages tend to have lexing and parsing phases that output special types used only by the machinery of the lexer and parser themselves.  Very rarely will you see a programming language that allows access to the lexing and parsing machinery.  In fact, even if they did it's unlikely that the structures returned would be ones that you could manipulate within the context of the language themselves.  Most Lisps on the other hand use core structures like symbols, cons cells, etc. as the input to the parsing and/or evaluation phases.  This is a key point to understand because it means that if you wish to write programs that manipulate Lisp programs all that you need is Lisp.  This fact enables the power of Lisp macro systems.  That is, the macro processing system is not hidden from view nor does it provide manipulation via a special subset or super-set of the host language, it's just Lisp.
+
+Keeping on the path of discussing the REPL, I'll move on to the **E**valuation part.  However, before I do that it's worth noting that all evaluation, for any language really, takes place in terms of a context.  In Lithp the evaluation context is the global, dynamic environment, simulated below with `environment`:
+
+{lang="py"}
+    
+    environment.set("a", atom.Symbol("value"))
+	environment.get(atom.Symbol("a"))
+	#=> value
+
+The code above simply sets the value of the string `"a"` to a symbol instance corresponding to `value`.  This establishes a primed context that will allow me to evaluate `sexpr` from above:
+
+{lang="py"}
+    
+    sexpr.eval(environment)
+	#=> value
+
+As shown above, evaluating `sexpr` in the context of the `environment` returns the value that the symbol `a` (as read earlier) returns `value`.  This is the base case in Lithp, but structures can be read just as easy:
+
+{lang="py"}
+    
+    sexpr = rdr.get_sexpr("(car (quote (one two three)))")
+
+The data type returned from the reader above is thus:
+
+{lang="py"}
+    
+    sexpr.__class__
+	#=> <class seq.List at 0x10b75bef0>
+
+The type returned corresponds to Lithp's notion of the cons-cell, `List`, which if you take a look you'll notice is not a cons-cell in the strictest sense.  I did this not only to leverage the Python language capabilities, but I also did it to illustrate a point later on when I talk about the implementation of core.lisp.  That said, it will act like a cons-cell for the purposes of implementation:
+
+{lang="py"}
+    
+    sexpr.car()
+	#=> car
+
+The `car` of the s-expression above is the symbol `car`:
+
+{lang="py"}
+    
+    sexpr.car().__class__
+	#=> <class atom.Symbol at 0x10b7bd050>
+
+The `cdr` of the same s-expression is a little more interesting:
+
+{lang="py"}
+    
+    sexpr.cdr()
+	#=> ((quote (one two three)))
+	
+The `cdr` is of course another `List` instance representing the "rest" of the original s-expression:
+	
+{lang="py"}
+    
+	sexpr.cdr().__class__
+	#=> <class seq.List at 0x10b75bef0>
+
+So what happens if I try to evaluate the read s-expression?  Observe:
+
+{lang="py"}
+    
+    sexpr.eval(environment)
+	# ValueError: Invalid symbol car
+
+As I mentioned, all evaluations take place within the context of an environment.  The `environment` instance created above currently only has a single binding `a`->`value` which is insufficient for Lithp to make sense of the s-expression supplied.  As shown, it's complaining about the `car` symbol which means that there is no binding for it.  In the absence of a populated environment, the core Lithp interpreter only knows a few things:
+
+ * Evaluation semantics (i.e. bindings lookup and argument evaluation)
+ * Cons-cell structure
+ * ...and that's it
+
+ To get any power out of Lithp requires that the evaluation context be populated with important bindings:
+
+{lang="py"}
+    
+    environment.set("car", Function(lithp.car))
+
+The `lithp.car` method is the base implementation of the Lispy `car` function.  It's wrapped in an instance of the `Function` class which takes care of the binding lookup and evaluation logic.  The Lithp REPL, during start-up, will load the global environment with the magnificent seven function and the two special forms.  Of course, simply loading `lithp.car` is not enough:
+
+{lang="py"}
+    
+    sexpr.eval(environment)
+	# ValueError: Invalid symbol quote
+	
+I also need the `quote` binding:
+
+{lang="py"}
+    
+    environment.set("car", Function(lithp.quote))
+
+Now, I have a minimal environment needed to evaluate the read s-expression:
+
+{lang="py"}
+    
+    sexpr.eval(environment)
+	#=> one
+
+The Lithp interpreter, will fully populate the core environment as such:
+
+{lang="py"}
+    
+    self.environment.set("eq",     Function(self.eq))
+    self.environment.set("quote",  Function(self.quote))
+    self.environment.set("car",    Function(self.car))
+    self.environment.set("cdr",    Function(self.cdr))
+    self.environment.set("cons",   Function(self.cons))
+    self.environment.set("atom",   Function(self.atom))
+    self.environment.set("cond",   Function(self.cond))
+        
+    self.environment.set("lambda", Function(self.lambda_))
+    self.environment.set("label",  Function(self.label))
+
+The rest of the REPL implementation is less interesting and mostly has to do with loading the core.lisp file, looping until full s-expressions are read, delegating evaluation to data instances, and the like.  Now that a fully operational Lithp core is in place, I can now start showing the implementation of the core.lisp file, which contains some other interesting functions, including a Lisp interpreter!
+
+Now the code described herein is not a lot of code at all.  Indeed, Python is a nice language to serve as a host for a language like Lithp because it provides the essentials for hosting functionality directly in its core.  It was a pleasure to work in Python, a language that I used in anger at the time, to discover for myself the stark simplicity of Lisp, a language that I would later use in my day job... so to speak.
+
+The following core.lisp file will, unlike Lithp on Python, be implemented on Lithp which is also a language, like Python, that provides the essentials for hosting functionality directly in its core.  The interpreter will almost exact implement McCarthy's original as described below:
+
+{lang="lisp"}
+    
+    eval[e; a] = [ 	
+        atom [e] → assoc [e; a]; 
+        atom [car [e]] → [ 
+            eq [car [e]; QUOTE] → cadr [e]; 
+            eq [car [e]; ATOM] → atom [eval [cadr [e]; a]]; 
+            eq [car [e]; EQ] → [eval [cadr [e]; a] = eval [caddr [e]; a]]; 
+            eq [car [e]; COND] → evcon [cdr [e]; a]; 
+            eq [car [e]; CAR] → car [eval [cadr [e]; a]]; 
+            eq [car [e]; CDR] → cdr [eval [cadr [e]; a]]; 
+            eq [car [e]; CONS] → cons [eval [cadr [e]; a]; 
+    eval [caddr [e]; a]]; T → eval [cons [assoc [car [e]; a]; evlis [cdr [e]; a]]; a]]; 
+		eq [caar [e]; LABEL] → eval [cons [caddar [e]; cdr [e]]; 
+									 cons [list [cadar [e]; car [e]; a]]; 
+		eq [caar [e]; LAMBDA] → eval [caddar [e]; 
+									  append [pair [cadar [e]; evlis [cdr [e]; a]; a]]] 
+
+So on with it then.
+
+core.lisp
+---------
+
+With only the magnificent seven and the two special forms, one can implement many useful functions and values.  Two interesting values are that of logical true and false.  Historically, these values were bound to the identity `t` and `nil` as the empty list `()` respectively, which I do at the top of core.lisp:
+
+{lang="lisp"}
+    
+    (label t (quote t))
+    (label nil (quote ()))
+
+Checking these values you'll see:
+
+{lang="lisp"}
+    
+    t
+    ;;=> t
+
+    nil
+    ;;=> ()
+
+Now that those symbols are bound, I can use them in functions as truthiness.  One such function is `null` that takes something and return `t` or `()` if it's an empty list:
+
+{lang="lisp"}
+    
+    (label null (lambda (null_x)
+                  (eq null_x nil)))
+
+The implementation of `null` is really where the lollipop that is Lithp starts licking itself.  That is, not only is it built on the core capabilities `label`, `lambda`, and `eq`, but it also uses the previously defined `nil`.  This is nothing truly magical, but it hints at something, dare I say, breathtaking -- Lithp itself can implement itself -- I'll call it Lithp'.  Surely something like that will take just as many lines as the Python implementation right?  Well, let's see.
+
+### The Lithp' dynamic environment
+
+The first thing that Lithp' needs is an environment.  I started by describing the Lithp environment, so I might as well start with the same in Lithp'.  However, to implement environments in Lithp I was able to leverage the host language Python's classes to do so.  However, since Lithp' is built on Lithp there are no such language constructs as classes and methods and the like.  Instead, all that Lithp has at its disposal are cons cells.  Thankfully, and as I mentioned earlier, the cons cell has incredibly robust abstractive properties.  Indeed, using the cons cell idea as the basis for a tuple structure is fairly straight-forwardly implemented as such:
+
+{lang="lisp"}
+    
+    (label pair (lambda (x y)
+                  (cons x (cons y nil))
+
+That is, a tuple in Lithp' is just a pair of cons operations with a tail corresponding to `nil`.[^dpair]  These pairs can be used as the basis for an environment where its entries consist of symbols bound to values:
+
+{lang="lisp"}
+    
+    (pair (quote a) (quote value))
+    ;;=> (a value)
+
+Just based on this, we can build up an associative structure that maintains the spirit of the `Environment` class:
+
+{lang="lisp"}
+    
+    (label env nil)
+    ;;=> ()
+
+    (cons (pair (quote a) (quote value)) env)
+    ;;=> ((a value))
+
+Do you see an environment in there?  If not, maybe showing how `cons`ing to the return of cons will help to illustrate:
+
+{lang="lisp"}
+    
+    (cons (pair (quote b) (quote valueb))
+      (cons (pair (quote a) (quote value)) env))
+
+    ;;=> ((b valueb) (a value))
+
+The value above represents an environment where there are two bindings:
+
+ * The symbol `a` is bound to `value`
+ * The symbol `b` is bound to `valueb`
+
+If I want to find the value of a binding all I would need to do is write a function that performs a lookup by walking the structure above and returns the first value bound to a given symbol.  Returning the first found binding is critical because I want to emulate the same evaluation semantics as Lithp.  That is, Lithp's implementation is such that bindings can override older bindings via the `Environment.parent` chain.  I can do the same by dictating that newer bindings appear closer to the front of the Lithp' environment list:
+
+{lang="lisp"}
+    
+    (label env+
+      (cons (pair (quote a) (quote new-a-value)) 
+        (cons (pair (quote b) (quote valueb))
+          (cons (pair (quote a) (quote value)) env))))
+    
+    ;;=> ((a new-a-value) (b valueb) (a value))
+
+This structure is in every way a stack!  To operate on this stack would be as easy as using `cons` as a push operation and `cdr` as a popping operation, which I'll do later.  However, what about that "lookup" function that I mentioned earlier?  Observe:
+
+{lang="lisp"}
+    
+    (label lookup (lambda (name context)
+                    (cond ((eq (car (car context)) name) (car (cdr (car context))))
+                           (t (lookup name (cdr context))))))
+
+The first part of the `cond` in the `lookup` function merely says that if the binding name at the head of the first pair (i.e. the `car` of the `car`) equals the `name` then return the binding value in that first pair (i.e. the `car` of the `cdr` of the `car`).  The default case of the `cond` simply says to pop (i.e. `cdr`) the first binding pair and retry the lookup with the new environment.  You can see `lookup` in action below:
+
+{lang="lisp"}
+    
+    (lookup (quote b) env+)
+    ;;=> valueb
+
+    (lookup (quote a) env+)
+    ;;=> new-a-value
+
+Indeed, the stack nature of the dynamic lookup of Lithp is preserved by Lithp'.
+
+In case you were wondering, all of these operations are non-destructive:
+
+{lang="lisp"}
+    
+    env
+    ;;=> ()
+
+That is, the value of `env` was never changed neither as a result of `cons`ing new stuff, nor by taking the `cdr`.  I only highlight this point because it will become important in the implementation of the Lithp' evaluation function.  That is, when you're dealing with immutable values, you'll need ways to manage state changes.  One straight-forward way available to Lithp is the `label` special form, but a better way is via the call stack.  If you'll notice, in the implementation of `lookup` I used the call stack to manage the decreasingly smaller versions of the `context` as binding pairs were popped off in search of a name match.  This technique will be used to great effect soon.
+
+[^dpair]: This is not to be confused with a dotted-pair which is a cons cell with a value at the head and something other than a cons cell as its tail.  McCarthy's original Lisp did not support dotted pairs and neither do I.
+
+However, for the moment I can use `pair` to build up a seed environment for quick use:
+
+{lang="lisp"}
+    
+    (label env' (pair (pair (quote t) (quote t)) 
+                (pair (quote nil) nil)))
+
+    ;;=> ((t t) (nil ()))
+
+That is, just like Lithp, Lithp' can start with the true and false values.  Now that the environment is out of the way, I can start implementing the Lithp' versions of the magnificent seven.
+
+### The Magnificent Seven'
+
+Just as I did with Lithp, so too shall I implement the Magnificent Seven in Lithp'; it seems like a good fit.  Therefore, I'll now perform a round-about and once again talk about how I implemented the core functions on top of the Lithp interpreter.
+
+#### quote'
+
+Perhaps the simplest way to illustrate the modus operandi of the Lithp' implementation is to show how a function `quote'` works.  The implementation is as follows:
+
+{lang="lisp"}
+    
+    (label quote' (lambda (qexpr)
+                   (car (cdr qexpr))))
+
+That is, `quote'` is just another function.  Like Lithp, the implementation of Lithp' will rely on functions that exist in the host language.  However, while Lithp's host was Python, the implementation of Lithp' will rely on Lithp as its host.  The function `quote'` above expects an s-expression of the form `(quote foo)` as its input and will return the second element of the expression outright, that is, without evaluation.  Actually, the `quote'` function doesn't care one bit if the first element of the s-expression is the symbol `quote`.  Instead, I'll leave it up to another piece of code to decide when a form should dispatch into `quote'`.  In any case, `quote'` works as follows:
+
+{lang="lisp"}
+    
+    (quote' (pair (quote quote) (quote a)))
+    ;;=> a
+
+I'm using the previously defined function `pair` to build up an s-expression of the form `(quote a)` as below:
+
+{lang="lisp"}
+    
+    (pair (quote quote) (quote a))
+    ;;=> (quote a)
+
+So that's pretty simple no?  What about a more complicated function?
+
+#### atom'
+
+The `quote'`, like the `quote` function is the only function that never evaluates its argument.  Because of this fact I decided to show its implementation first.  However, every other Lithp' function will need access to an evaluation function to operate correctly.  The function will be named simply `eval` and will operate, in principle, as follows:
+
+{lang="lisp"}
+    
+    (eval s-expression bindings)
+    ;;=> result 
+
+However, I'm going to hold-off writing `eval` until the end.  Instead, I'll just assume that it's defined and call it inside of the Lithp' implementation functions as needed.  Therefore, the implementation of `atom'` is as follows:
+
+{lang="lisp"}
+    
+    (label atom' (lambda (aexpr bindings)
+                   (atom (eval (car (cdr aexpr)) bindings))))
+
+Once `eval` is in place, `atom'` will work as follows:
+
+{lang="lisp"}
+    
+    (atom' (pair (quote atom) (pair (quote quote) (quote a))) env')
+    ;;=> t
+
+    (atom' (pair (quote atom) (quote t)) env')
+    ;;=> t
+
+    (atom' (pair (quote atom) (pair (quote quote) (quote (a b c)))) env')
+    ;;=> ()
+
+The examples above are a bit more complicated than for `quote'`, but the principle of building a valid Lithp' data structure representing a program is the same:
+
+{lang="lisp"}
+    
+    (pair (quote atom) (pair (quote quote) (quote a)))
+    ;;=> (atom (quote a))
+
+
+The implementation of the next few Lithp' implementation functions will be similar.
+
+#### eq'
+
+The Lithp' equality operator will delegate down to the Lithp `eq` function after evaluating its two arguments:
+
+{lang="lisp"}
+    
+    (label eq' (lambda (eexpr ebinds)
+                (eq (eval (car (cdr eexpr)) ebinds)
+                    (eval (car (cdr (cdr eexpr))) ebinds))))
+
+The `eq'` takes the whole form, so I have to throw away the first operator.  There is no particular reason for doing it this way except that I will eventually place the delegation logic into `eval` function, separate from the handlers.  Therefore, the form that comes into the `eq'` function can be built up programmatically for the purpose of testing:
+    
+{lang="lisp"}
+    
+    (cons (quote eq)
+          (pair
+            (pair (quote quote) (quote a))
+            (pair (quote quote) (quote a))))
+
+    ;;=> (eq (quote a) (quote a))
+
+That is, the value returned is a Lithp list representing the code form handled by `eq'`.  I could have just used `(quote (eq (quote a) (quote a)))` instead, and will hereafter, but decided to do the first couple of examples by hand (so to speak) to demonstrate that the input to Lithp' truly is a data structure.  Running the above against `eq'` yields:
+
+{lang="lisp"}
+    
+    (eq' (cons (quote eq)
+               (pair
+                 (pair (quote quote) (quote a))
+                 (pair (quote quote) (quote a))))
+         env')
+
+    ;;=> t
+
+Clearly, the symbol `a` is equal to another symbol `a`.  The results of a failed check is thus:
+
+{lang="lisp"}
+    
+    (eq' (cons (quote eq)
+               (pair
+                 (pair (quote quote) (quote a))
+                 (pair (quote quote) (quote zzzzz))))
+         env')
+
+    ;;=> ()
+
+Now bear in mind that the `t` and `()` returned from the calls to `eq'` are those that exist in the context of Lithp and *not* Lithp'.  That is, even though the bindings created in `env'` are the same values as the Lithp `t` and `()`, the return values of `eq'` are not retrieved through those bindings.  This will not be a problem for the sake of correctness.  Instead, I only point it out because I've not yet changed the semantics between Lithp and Lithp', but I will later.
+
+#### car' / cdr'
+
+Like `eq'`, but `car'` and `cdr'` delegate down to Lithp as I see no need in changing their semantics either:
+
+{lang="lisp"}
+    
+{lang="lisp"}
+    
+    (label car' (lambda (caexpr cabinds)
+                  (car (eval (car (cdr caexpr)) cabinds))))
+
+    (label cdr' (lambda (cdexpr cdbinds)
+                  (cdr (eval (car (cdr cdexpr)) cdbinds))))
+
+Like with `eq'`, I can test these using lists, but this time I'll use the Lithp `quote` function:
+
+{lang="lisp"}
+    
+    (car' (quote (car (quote (a b c)))) env')
+    ;;=> a
+
+    (cdr' (quote (car (quote (a b c)))) env')
+    ;;=> (b c)
+
+These are both straight-forward, as is `cons'`, shown next.
+
+#### cons'
+
+Once again, since the semantics of Lithp and Lithp' `cons` is the same, I just delegate down:
+
+{lang="lisp"}
+    
+    (label cons' (lambda (coexpr cobinds)
+	               (cons   (eval (car (cdr coexpr)) cobinds)
+                           (eval (car (cdr (cdr coexpr))) cobinds))))
+
+And test directly:
+
+{lang="lisp"}
+    
+    (cons' (quote (cons (quote a) (quote (b c)))) env')
+
+    ;;=> (a b c)
+
+So far, the implementation of Lithp' has been pretty weak-sauce, but with `cond'` shown next, it gets a little more interesting.
+
+#### cond'
+
+Up until this point, `quote'` was the only Lithp' function that didn't evaluate its arguments.  However, `cond'` may or may not evaluate its arguments, depending on the results of the conditional checks.  The base implementation of `cond'` is trivial:
+
+{lang="lisp"}
+    
+    (label cond' (lambda (cndexpr cndbinds)
+                   (eval-cond (cdr cndexpr) cndbinds)))
+
+That is, it simply delegates its behavior to the `eval-cond` function which is a cheap way of doing some piece-wise transformation, much like I'd do with a `let`.  The `eval-cond` function is tasked with pulling apart the Lithp' `cond` form and checking each condition in turn until it finds one that resolves to a truthy value:
+
+{lang="lisp"}
+    
+    (label eval-cond (lambda (condition condbinds)
+                       (cond ((eval (car (car condition)) condbinds)
+                                (eval (car (cdr (car condition))) condbinds))
+                              (t (eval-cond (cdr condition) condbinds)))))
+
+The `eval-bind` function is the first recursive Lithp function that I've shown.  It's not terribly complicated.  In fact, it just walks through a list of lists where each inner list contains two elements, a condition part and a consequent part:
+
+{lang="lisp"}
+    
+    (label cond-ex (quote (((eq a (quote (x y z))) (quote first-branch))
+                           ((eq a nil)             (quote second-branch))
+    	                    (t                     (quote default-case)))))
+
+Using the form above, I can exercise `cond'` by changing the binding of the symbol `a`, which serves as the basis for two of the three `cond` conditions:
+
+{lang="lisp"}
+    
+    (cons (pair (quote a) (quote nothing)) env')
+    ;;=> ((a nothing) (t t) (nil ()))
+
+Binding `a` to the symbol `nothing` should cause the `cond` to fall through to the default case:
+
+{lang="lisp"}
+    
+    (eval-cond cond-ex (cons (pair (quote a) (quote nothing)) env'))
+    ;=> default-case
+
+Likewise, I can trigger the first branch by binding `a` to something else:
+
+{lang="lisp"}
+    
+    (eval-cond cond-ex (cons (pair (quote a) (quote (x y z))) env'))
+    ;=> first-branch
+
+Finally, the second branch is triggered via another binding:
+
+{lang="lisp"}
+    
+    (eval-cond cond-ex (cons (pair (quote a) (quote ())) env'))
+    ;=> second-branch
+
+As you can see, even though the body of the `cond-ex` uses `nil` in the second branch check, Lithp' was able to resolve the binding in the passed environment.
+
+Now that `cond` is taken care of, I can move on to the pinnacle of the Lithp' implementation, `eval`.
+
+### eval
+
+The `eval` function is designed to take two arguments: a Lithp' expression and a context in which to evaluate it:
+
+{lang="lisp"}
+    
+    (label eval (lambda (expr binds)
+
+The first part of `eval` checks if an expression is an atomic value such as a symbol `t` or `nil` or some arbitrary name:
+
+{lang="lisp"}
+    
+    (cond
+      ((atom expr) (lookup expr binds))
+
+If the expression is an atomic value then its evaluation is just whatever its binding happens to be in the supplied context.  However, in the case where the expression itself is not an atom, it must be a list, in which case I just look at the first element:
+
+{lang="lisp"}
+    
+      ((atom (car expr))
+
+In Lithp', just as in Lithp (and most Lisps), the first element of a list is either a function or a special form.  Since I've implemented the backing function for the Lithp' special forms using Lithp, I can use what is in effect a dispatch table from the first-element symbol to the implementation:
+
+{lang="lisp"}
+    
+    (cond
+      ((eq (car expr) (quote quote)) (quote' expr))
+      ((eq (car expr) (quote atom))  (atom'  expr binds))
+      ((eq (car expr) (quote eq))    (eq'    expr binds))
+      ((eq (car expr) (quote car))   (car'   expr binds))
+      ((eq (car expr) (quote cdr))   (cdr'   expr binds))
+      ((eq (car expr) (quote cons))  (cons'  expr binds))
+      ((eq (car expr) (quote cond))  (cond'  expr binds))
+
+As shown above, the `cond` above checks each first element against the known Lithp' core functions and delegates to the Lithp handlers to evaluate them. However, what happens if a function is not directly resolvable via the lookup table above?  In that case, the `eval` function handles it specially:
+
+{lang="lisp"}
+    
+    (t (eval (rewrite expr binds) binds))))
+
+That is, `eval` rewrites the expression such that the original name at the first of the list is replace with whatever its binding happens to be:
+
+{lang="lisp"}
+    
+    (label rewrite (lambda (rexpr rbinds)
+                     (cons (lookup (car rexpr) rbinds)
+                           (cdr rexpr))))
+
+This action can be shown below:
+
+{lang="lisp"}
+    
+    (rewrite (cons (quote a) (quote (b c)))
+             (cons (pair (quote a) (quote ______)) env'))
+
+    ;;=> (______ b c)
+
+This behavior is interesting because it signals the first real point of departure of Lithp' from its host Lithp.  That is, Lithp doesn't rewrite function applications in this way, but I've decided to do so for Lithp'.  What I haven't shown is what happens when `eval` receives a rewritten expression of the form `((lambda (n) n) nil)`.  I'll defer the answer to that question until later and instead show one more core form `label` that's also rewritten, but in a different way.
+
+#### label
+
+When examining how to implement the `label` form for Lithp' there were a few ways that it could have been done.  The obvious way is to view `label` as a binding creator and evaluate the bound value for the purpose of creating a new environment.  In this case, the evaluation is as simple as just looking up the binding name in the augmented environment.  This technique is less than thrilling.  However, I found a more interesting technique in Paul Graham's paper *The Roots of Lisp*.  Indeed, Graham's implementation of `eval` forms the primary inspiration for the implementation of Lithp', even though I change it up a bit as the implementation of `label` below will show.
+
+That said, observe the implementation of `label` below:
+
+{lang="lisp"}
+    
+    ((eq (car (car expr)) (quote label))
+     (eval (cons (car (cdr (cdr (car expr)))) (cdr expr))
+           (cons (pair (car (cdr (car expr))) 
+                 (car (cdr (cdr (car label-ex))))) binds)))
+
+What's happening here is a bit more subtle than what's going on in the `rewrite` function shown above.  I'll pull this subtlety apart using the following example:
+
+{lang="lisp"}
+    
+    (label label-ex (quote ((label a (lambda (id) id)) t)))
+
+    ;;=> ((label a (lambda (id) id)) t)
+
+That is, to see what happens to a Lithp' form of `((label a (lambda (id) id)) t)` I can show what happens in the parts of the implementation:
+
+{lang="lisp"}
+    
+    (cons (car (cdr (cdr (car label-ex)))) (cdr label-ex))
+    ;;=> ((lambda (id) id) t)
+
+The first part of the call to the recursive `eval` is very similar to the way that `rewrite` works.  That is, it creates a call to the `lambda` form bound to `a` with the original argument `t`.  You probably already knows what happens when this form is encountered; the value `t` is returned.  However, the second argument to the recursive `eval` call builds a bit of a weird context:
+
+{lang="lisp"}
+    
+    (cons (pair (car (cdr (car expr))) 
+          (car (cdr (cdr (car label-ex))))) binds)
+    
+    ;;=> ((a (lambda (x) x)) (t t) (nil ()))
+
+That is, the value `a` is bound to the lambda that was rewritten to replace the `label` body.  So what's the point?  The answer is simply that should I wish to build a Lithp' interpreter around `eval` I would like that the environment coming out of the `label` implementation be usable to evaluate further forms.  Graham's original rewrote the `label` form to be that of the `lambda` call as above, with the binding `a` bound to the `label` form itself.  In both cases, it really doesn't matter because the rewriting ensure that the evaluation doesn't touch the `a` binding at all.
+
+Observe what happens when it's all put together:
+
+{lang="lisp"}
+    
+    (eval (cons (car (cdr (cdr (car label-ex)))) (cdr label-ex))
+          (cons (pair (car (cdr (car label-ex))) (car label-ex)) env'))
+    ;;=> t
+
+This is the same as:
+
+{lang="lisp"}
+    
+    ((lambda (id) id) t)
+
+And finally, I can show how `eval` handles the `lambda` form next.
+
+#### lambda
+
+The keystone of the Lithp' implementation is the `lambda` evaluation logic.  As I've shown, the `eval` expects something like `((lambda (id) id) t)` as its input form.  The following code looks for just such a form and again performs a different rewrite to provide an evaluation context for the `lambda` body:
+
+{lang="lisp"}
+    
+    ;; Lambda handling
+    ((eq (car (car expr)) (quote lambda))
+	 (eval (car (cdr (cdr (car expr))))
+           (append (zip (car (cdr (car expr))) (eval-args (cdr expr) binds))
+                   binds)))
+
+There's a lot going on here, so let me take it piece by piece.  First, the `append` function probably does what you'd think -- it takes two lists and tacks them together end to end:
+
+{lang="lisp"}
+    
+    (label append (lambda (append_x append_y)
+                    (cond ((null append_x) append_y)
+                           (t (cons (car append_x)
+                                    (append (cdr append_x) append_y))))))
+
+Yet another recursive function is `append`, indeed, to do anything interesting in Lithp recursion is required.  Regardless, `append` works as follows:
+
+{lang="lisp"}
+    
+    (append (quote (a b c)) (quote (d e f)))
+    
+    ;;=> (a b c d e f)
+
+A slightly more interesting function is the `zip` function used above:
+
+{lang="lisp"}
+    
+    (label zip (lambda (x y)
+                 (cond ((and (null x) (null y)) nil)
+                       ((and (not (atom x)) (not (atom y)))
+                        (cons (pair (car x) (car y))
+                              (zip (cdr x) (cdr y)))))))
+
+The `zip` function takes two lists and builds an environment-like pairing of the elements of both, like so:
+
+{lang="lisp"}
+    
+    (zip (quote (a b c)) (quote (d e f)))
+
+    ;;=> ((a d) (b e) (c f))
+
+With these two functions in place, I can show how the parts of the `lambda` handling work in conjunction to rewrite.  The example is as I've already shown:
+
+{lang="lisp"}
+    
+    (label lambda-ex (quote ((lambda (id) id) t)))
+
+Now, to build up a context for use in resolving the body of the `lambda` I need a way of taking the argument bindings and evaluating them so that they take on values within the body of the lambda.  The function `eval-args` does just this:
+
+{lang="lisp"}
+    
+    (label eval-args (lambda (args binds)
+                       (cond ((null args) nil)
+                              (t (cons (eval  (car args) binds)
+                                       (eval-args (cdr args) binds))))))
+
+In the core environment `env'` the names `(t nil)` will evaluated as such:
+
+{lang="lisp"}
+    
+    (eval-args (quote (t nil)) env')
+
+    ;;=> (t ())
+
+These values will `zip` with the arguments to the `lambda` form to build a function-level binding context used to evaluate the `lambda` body, pulled out with:
+
+{lang="lisp"}
+    
+    (car (cdr (cdr (car lambda-ex))))
+    
+    ;;=> id
+
+In other words:
+
+{lang="lisp"}
+    
+    (zip (car (cdr (car lambda-ex))) (eval-args (cdr lambda-ex) env'))
+    
+    ;;=> ((id t))
+
+That is, the body `id` gets evaluated in the augmented context `((id t) (t t) (nil ()))` to result in the symbol `t`.
+
+And that's all there is to it.  This is the essence of the beauty discovered by John McCarthy.
+
+### Conclusion
+
+Lithp is just a humble little Lisp created in the spirit of discovery and learning.  It was incredibly instructive to create and I hope by walking through it in this installment you too might have discovered something new and interesting.  There are many different ways to take this implementation.  From Linear Lisp to macros to Lithp'', the possibilities are endless.  In future installments I'll touch back with Lithp and Lithp' and highlight other angles of discovery. But for now perhaps you could go off and implement the same using your favorite programming language?
+

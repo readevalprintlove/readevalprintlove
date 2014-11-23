@@ -1,0 +1,49 @@
+# Hubris in tech
+
+hubris: n. Overbearing pride or presumption; arrogance.
+
+---
+
+calibris: n. The insistence that tech is a pure meritocracy.
+
+chewbris: n. An outmoded management style based around intimidation, threats of firing "if you can't get this done" and making veiled criticisms and rude comments immediately proceeded by "just kidding."
+
+clojbris: n. The insistence that some concept is so important that a) everyone should already understand it and b) therefore it should not be explained.
+
+dubris: n. The condition of being so high that re-implementing some framework sounds like a great idea.
+
+ewbris: n. see Not-Invented-Here
+
+foobris: n. Programming documentation filled with examples rife with meta-syntactic variables.
+
+gnubris: n. An insistence that every open-source software developer adhere to your definition of what open-source should be.
+
+hubris.js: n. Probably an MVC framework of some sort.
+
+kubris: n. An insistence that every programming book should contain everything needed to understand said book.
+
+lugubris: n. see concern-troll
+
+n00bris: n. The pride of a newcomer to enter a new programming community and immediately start suggesting changes.
+
+oopris: n. The idea that even though you don't know what OOP means, you'll know it when you see it.
+
+protubris: n. That ugly utility class holding all of the methods that should have been functions, but weren't allowed to be.
+
+q-bris: n. Pride so deep that one feels the need to jump all over anyone skeptical of your views.
+
+rubris: n. Excessive pride in one’s programming language or framework.
+
+shoebris: n. The idea that something that is stunted and with chunky buttons and bright colors automatically makes it a good learning environment for children.
+
+tumblis: n. An opinion blog without a single citation.
+
+Viewbris: n. The excessive pride of the MVC framework author.
+
+Wu-bris: n. The idea that all value measurements must occur through a commerce-colored lens.
+
+### Related terms
+
+cumbris: n. A testing framework supporting business speak, but that actually  sticks the user with a fragile domain-specific balancing act.
+
+pubris: n. The pride that comes with being young and not realizing that computers were designed to help people think better, not just do the same old menial labor faster.

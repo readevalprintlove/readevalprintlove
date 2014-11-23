@@ -1,0 +1,42 @@
+Introduction - Ur-LISP
+======================
+
+So you want to create a Lisp?  In this installment I'll talk a little about the creation of new Lisps.  
+
+The infinitely quotable Erik Naggum had this to say about the desire to reinvent Lisp:[^arc]
+
+> ... yet another demonstration of the problem of too 
+> strong an ego that cannot live with what somebody 
+> else has made.
+
+However, in the same message Erik Naggum also said this:
+
+> Please let each person determine what is 
+> the "greater use" of their own energy, 
+> as long as it is not harmful.
+
+The phrase above has, for better or worse, become a mantra by which many people present as a justification for doing things that are detrimental to themselves and ultimately others. Indeed, Naggum spoke directly to this condition when he concluded his post with a very poignant diatribe on the rabid drive toward reinvention in IT:
+
+> Why is the IT world defined by people who are unable to 
+> deal with the concepts of continuity, longevity, and
+> design for long-term stability?  Why do they believe they 
+> are so much smarter than everything that has gone before 
+> them, when they clearly are not and repeat mistakes that 
+> take years to undo, if not replaced by another stupid 
+> "revolution" that itself starts from scratch?
+
+In this light, how could anyone justify the creation of yet another Lisp?  First of all, Naggum spoke from a position that could be summarized as: Common Lisp is the most powerful programming language in the world and allows a programmer absolute freedom in accomplishing any of their goals.  While I tend to agree with the spirit of Naggum's position, I tend to disagree that just because Common Lisp allows you to do anything[^any] doesn't mean that you should use it for everything.  Sometimes a focused language is a better choice than one that gives you absolute freedom.  That said, this installment is not about replacing Common Lisp with any other language.  Instead, in this issue I'll discuss the importance of understanding Lisp, especially its origins and original implementation.
+
+So I now posit the following question: How can we avoid the problem of reinvention?
+
+My answer to this question is simple: through the act of reinvention can we avoid the problem of reinvention.
+
+Let me rephrase the seemingly Discordian statement above.  That is, in order to avoid the problem of reinvention we need to fully (or to the best of our abilities) understand what came before.  In my opinion, the best way to understand what came before is to reinvent it.
+
+[^arc]: [Naggum was referring to Arc](http://www.xach.com/naggum/articles/3215864060763152@naggum.net.html) when he made this statement.  The ego mentioned belonged to [Paul Graham](http://www.paulgraham.com).  The points made by Naggum in that post ran deeper than taking a shot at Graham.
+
+[^any]: This is not exactly true since the Common Lisp spec intentionally leaves many key decisions up to the vendors.  While I understand why the deferment was done and actually think it was the right move given the goals of the language, the choice of one vendor over another is a non-trivial decision.  That said, if you think that Common Lisp is the right language then the complexities around vendor choice are necessary and should not dissuade anyone truly interested in building rock-solid systems.
+
+## Caveat emptor
+
+The Lisp implementation described in this installment is a snapshot in time. Therefore, the code herein might not match the code at http://www.github.com/fogus/lithp exactly. Indeed, the codebase online is subject to my changing fancies and at times may be a WiP. That said, this essay is a living document, so it too is subject to change. However, this essay is designed to stand alone and any changes to it will work to foster that goal.
