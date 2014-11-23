@@ -1070,7 +1070,7 @@ And test directly:
 
     ;;=> (a b c)
 
-So far, the implementation of Lithp' has been pretty weak-sauce, but with `cond'` shown next, it gets a little more interesting.
+So far, the implementation of Lithp' has been weak-sauce, but with `cond'` shown next, it gets a little more interesting.
 
 #### cond'
 
@@ -1090,7 +1090,7 @@ That is, it simply delegates its behavior to the `eval-cond` function which is a
                                 (eval (car (cdr (car condition))) condbinds))
                               (t (eval-cond (cdr condition) condbinds)))))
 
-The `eval-bind` function is the first recursive Lithp function that I've shown.  It's not terribly complicated.  In fact, it just walks through a list of lists where each inner list contains two elements, a condition part and a consequent part:
+The `eval-bind` function is the first recursive Lithp function that I've shown.  It's not terribly complicated, in fact it just walks through a list of lists where each inner list contains two elements, a condition part and a consequent part:
 
 {lang="lisp"}
     
@@ -1217,7 +1217,7 @@ That is, to see what happens to a Lithp' form of `((label a (lambda (id) id)) t)
     (cons (car (cdr (cdr (car label-ex)))) (cdr label-ex))
     ;;=> ((lambda (id) id) t)
 
-The first part of the call to the recursive `eval` is very similar to the way that `rewrite` works.  That is, it creates a call to the `lambda` form bound to `a` with the original argument `t`.  You probably already knows what happens when this form is encountered; the value `t` is returned.  However, the second argument to the recursive `eval` call builds a bit of a weird context:
+The first part of the call to the recursive `eval` is very similar to the way that `rewrite` works.  That is, it creates a call to the `lambda` form bound to `a` with the original argument `t`.  You probably already know what happens when this form is encountered; the value `t` is returned.  However, the second argument to the recursive `eval` call builds a bit of a weird context:
 
 {lang="lisp"}
     
