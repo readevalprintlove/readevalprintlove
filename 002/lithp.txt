@@ -1338,3 +1338,12 @@ And that's all there is to it.  This is the essence of the beauty discovered by 
 
 Lithp is just a humble little Lisp created in the spirit of discovery and learning.  It was incredibly instructive to create and I hope by walking through it in this installment you too might have discovered something new and interesting.  There are many different ways to take this implementation.  From Linear Lisp to macros to Lithp'', the possibilities are endless.  In future installments I'll touch back with Lithp and Lithp' and highlight other angles of discovery. But for now perhaps you could go off and implement the same using your favorite programming language?
 
+Further reading
+---------------
+
+John McCarthy. 1960. Recursive functions of symbolic expressions and their computation by machine, Part I. Commun. ACM 3, 4 (April 1960), 184-195. DOI=10.1145/367177.367199 http://doi.acm.org/10.1145/367177.367199
+
+Robert R. Fenichel , Jerome C. Yochelson, A LISP garbage-collector for virtual-memory computer systems, Communications of the ACM, v.12 n.11, p.611-612, Nov. 1969
+
+Paul Graham. 2002. Roots of Lisp. http://www.paulgraham.com/rootsoflisp.html
+
