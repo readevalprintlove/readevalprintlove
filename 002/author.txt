@@ -4,6 +4,10 @@ I hope you've enjoyed this installment - it was a long time coming. Please do no
 
 Thank you.
 
+## Translations welcomed
+
+If you're interested in translating issues of Read-Eval-Print-λove then please contact me using the information below.  I will happily share proceeds equally (as humble as they might be) with translators.
+
 # Author information and links
 
 [Michael Fogus](http://www.fogus.me) — a core contributor to
