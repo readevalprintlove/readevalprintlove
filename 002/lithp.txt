@@ -13,7 +13,7 @@ The Lithp interpreter provides the absolute core functions of McCarthy's origina
 
 [^lithpinc]: This code-base is at times in flux and may or may not always match the implementation detailed herein.
 
-The magnificent seven
+The Magnificent Seven
 ---------------------
 
  * atom
@@ -30,7 +30,7 @@ Two special forms
  * label
  * lambda
  
-In addition to the magnificent seven and the two special forms I'll also implement a variant of Lithp called Lithp' using Lithp itself.
+In addition to the Magnificent Seven and the two special forms I'll also implement a variant of Lithp called Lithp' using Lithp itself.
 
 Implementation notes
 --------------------
@@ -62,13 +62,13 @@ code for McCarthy's original Lisp](http://www.paulgraham.com/rootsoflisp.html) [
 
 [^pg]: Back in the day when Graham actually wrote about Lisp.  Sadly, his Lisp illumination has all but died off, but I suppose I can understand -- there's no money in it.
 
-However, while playing around with the code I found that in using the core functions (i.e. `null.`, `not.`, etc.)  I was not experiencing the full effect of the original.  That is, the original Lisp was dynamically scoped, but the Common Lisp used to implement and run (CLisp in the latter case) Graham's code was lexically scoped.  Therefore, by attempting to write high-level functions using only the magnificent seven and Graham's core functions in the Common Lisp
+However, while playing around with the code I found that in using the core functions (i.e. `null.`, `not.`, etc.)  I was not experiencing the full effect of the original.  That is, the original Lisp was dynamically scoped, but the Common Lisp used to implement and run (CLisp in the latter case) Graham's code was lexically scoped.  Therefore, by attempting to write high-level functions using only the Magnificent Seven and Graham's core functions in the Common Lisp
 I was taking advantage of lexical scope; something not available to McCarthy and company.  Of course, the whole reason that Graham wrote `eval.` was to enforce dynamic scoping (he used a list of symbol-value pairs where the dynamic variables were added to its front when introduced; which I will adopt later):
 
     (eval. 'a '((a 1) (a 2)))
     ;=> 1
 
-So I then implemented a simple REPL in Common Lisp that fed input into `eval.` and maintained the current environment list.  That was fun, but I wasn't sure that I was learning anything at all.  Eventually I decided to try to implement my own core environment for the magnificent 7 to try and get a feel for what it took to build a simple language up from scratch.  I suppose if I were a purist then I would have found an IBM 704, but that would be taking this exercise to the extreme. (email me if you have one that you'd like to sell for cheap)
+So I then implemented a simple REPL in Common Lisp that fed input into `eval.` and maintained the current environment list.  That was fun, but I wasn't sure that I was learning anything at all.  Eventually I decided to try to implement my own core environment for the Magnificent Seven to try and get a feel for what it took to build a simple language up from scratch.  I suppose if I were a purist then I would have found an IBM 704, but that would be taking this exercise to the extreme. (email me if you have one that you'd like to sell for cheap)
 
 Anyway, minus a 704, I needed to start with creating an `Environment` that provided dynamic scoping, and the result is monstrosity [^mons] described herein.
 
@@ -174,7 +174,7 @@ And that's it for the `Environment` class.  Looking back on this code it astonis
 fun.py
 ------
 
-As you might have imagined, McCarthy's Lisp derives much of its power from the function.  The `Function` class is used exclusively for *built-in* functions (i.e. the magnificent seven).  Each core function is implemented as a regular Python method, each taking an `Environment` and its arguments.
+As you might have imagined, McCarthy's Lisp derives much of its power from the function.  The `Function` class is used exclusively for *built-in* functions (i.e. the Magnificent Seven).  Each core function is implemented as a regular Python method, each taking an `Environment` and its arguments.
 
 {lang="py"}
     
@@ -284,13 +284,13 @@ Plus two special forms:
    1.  `label`
    2.  `lambda` 
 
-The `Lisp` class defines the magnificent seven in terms of the run-time environment built thus far (i.e. dynamic scope, lambda, environments, and symbols, which are not detailed herein) and aggregated in a `Lisp` class starting thus:
+The `Lisp` class defines the Magnificent Seven in terms of the run-time environment built thus far (i.e. dynamic scope, lambda, environments, and symbols, which are not detailed herein) and aggregated in a `Lisp` class starting thus:
 
 {lang="py"}
     
 	class Lisp:
 
-The magnificent seven are thus implemented as methods on this class.
+The Magnificent Seven are thus implemented as methods on this class.
 
 ### `eq`
 
@@ -399,7 +399,7 @@ The internal sequence type used by Lithp is a useful tool, but it loses much of 
 
 In the previous function definition (`car`) I used the term cons-cell to describe the primitive structure underlying a Lisp list.  If you allow me, let me spend a few moments describing this elegant structure, and why it's such an important abstract data type (ADT).
 
-Lisp from the beginning was built with the philosophy that lists should be a first-class citizen of the language; not only in the realm of execution, but also generation and manipulation.   If you look at my implementation of `List` in [seq.py](seq.html) you'll notice that it's pretty standard fare.  That is, it, like most lisp implementations is backed by a boring sequential store where one element conceptually points to the next and blah blah blah.  **Boring**.  Where the cons-cell shines is that it is a very general purpose ADT that can be used in a number of ways, but primary among them is the ability to represent the list.
+Lisp from the beginning was built with the philosophy that lists should be a first-class citizen of the language; not only in the realm of execution, but also generation and manipulation.   If you look at my implementation of `List` in [seq.py](seq.html) you'll notice that it's pretty standard fare.  That is, like most list implementations, Lithp's is backed by a boring sequential store where one element conceptually points to the next and blah blah blah.  **Boring**.  Where the cons-cell shines is that it is a very general purpose ADT that can be used in a number of ways, but primary among them is the ability to represent the list.
 
 Lists in the early Lisp was precisely a chain of cons cells and the operators `car` and `cdr` pointed to very specific implementation details that over time became generalized to mean "the first thing" and "the rest of the things" respectively.  But the fact remains that the cons cell solves a problem that is often difficult to do properly.  That is, how could Lisp represent a container that solved a number of requirements:
 
@@ -407,9 +407,9 @@ Lists in the early Lisp was precisely a chain of cons cells and the operators `c
  * Represents a pair - car is a piece of data, cdr is a piece of data
  * Represents a terminator - car is the cell itself, cdr is the cell itself
  * Implementation efficiency - O(1) adds to the front
- * Heterogeneous - datum are wrapped in a generic container type
+ * Heterogeneous - datum is wrapped in a generic container type
 
-It would be interesting to learn the precise genesis of the idea behind the cons cell, but I imagine that it must have provoked a eureka moment.
+It would be interesting to learn the precise genesis of the idea behind the cons cell, as I imagine that it must have provoked a eureka moment.
 
 I've already discussed how the IBM 704 hardware was especially amenable to solving this problem efficiently, but the other points bear further consideration.  Lisp popularly stands for "LISt Processing language" but as I explained, the basic unit of data was instead the cons cell structure.  The fact of the matter is that the cons cell serves as both the implementation detail for lists **and** the abstraction of a pair, all named oddly as if the implementation mattered.  If Lisp had originally gone whole-hog into the abstraction game, then `car` and `cdr` would have been `first` and `rest` and would have spared the world decades of whining.
 
@@ -531,7 +531,7 @@ Note that the null cons cell (i.e. empty list) is a falsey value in Lithp and th
 
         return FALSE
 
-Again, `atom` is another eager function in that it must evaluate its argument to determine if it's an atomic data structure.  However, the last of the magnificent seven, `label` disables evaluation in a way that's in the spirit of `cond`, but that operates towards a very different purpose.  But first, I'll cover a function called `quote` that provides a way to avoid evaluation altogether.
+Again, `atom` is another eager function in that it must evaluate its argument to determine if it's an atomic data structure.  However, the last of the Magnificent Seven, `label` disables evaluation in a way that's in the spirit of `cond`, but that operates towards a very different purpose.  But first, I'll cover a function called `quote` that provides a way to avoid evaluation altogether.
 
 ### `quote`
 
@@ -576,7 +576,7 @@ Notice that in the following implementation of `label` the first argument (hopef
         env.set(args[0].data, args[1].eval(env))
         return env.get(args[0].data)
 
-Finally, the last of the magnificent seven is another lazy operator named `cond`.[^cond]
+Finally, the last of the Magnificent Seven is another lazy operator named `cond`.[^cond]
 
 [^cond]: There is no particular reason that a primordial Lisp needs to implement `cond`, in fact something like `if` would work just as well.
 
@@ -728,7 +728,7 @@ As I mentioned, all evaluations take place within the context of an environment.
     
     environment.set("car", Function(lithp.car))
 
-The `lithp.car` method is the base implementation of the Lispy `car` function.  It's wrapped in an instance of the `Function` class which takes care of the binding lookup and evaluation logic.  The Lithp REPL, during start-up, will load the global environment with the magnificent seven function and the two special forms.  Of course, simply loading `lithp.car` is not enough:
+The `lithp.car` method is the base implementation of the Lispy `car` function.  It's wrapped in an instance of the `Function` class which takes care of the binding lookup and evaluation logic.  The Lithp REPL, during start-up, will load the global environment with the Magnificent Seven function and the two special forms.  Of course, simply loading `lithp.car` is not enough:
 
 {lang="py"}
     
@@ -739,7 +739,7 @@ I also need the `quote` binding:
 
 {lang="py"}
     
-    environment.set("car", Function(lithp.quote))
+    environment.set("quote", Function(lithp.quote))
 
 Now, I have a minimal environment needed to evaluate the read s-expression:
 
@@ -792,7 +792,7 @@ So on with it then.
 core.lisp
 ---------
 
-With only the magnificent seven and the two special forms, one can implement many useful functions and values.  Two interesting values are that of logical true and false.  Historically, these values were bound to the identity `t` and `nil` as the empty list `()` respectively, which I do at the top of core.lisp:
+With only the Magnificent Seven and the two special forms, one can implement many useful functions and values.  Two interesting values are that of logical true and false.  Historically, these values were bound to the identity `t` and `nil` as the empty list `()` respectively, which I do at the top of core.lisp:
 
 {lang="lisp"}
     
@@ -896,7 +896,7 @@ In case you were wondering, all of these operations are non-destructive:
     env
     ;;=> ()
 
-That is, the value of `env` was never changed neither as a result of `cons`ing new stuff, nor by taking the `cdr`.  I only highlight this point because it will become important in the implementation of the Lithp' evaluation function.  That is, when you're dealing with immutable values, you'll need ways to manage state changes.  One straight-forward way available to Lithp is the `label` special form, but a better way is via the call stack.  If you'll notice, in the implementation of `lookup` I used the call stack to manage the decreasingly smaller versions of the `context` as binding pairs were popped off in search of a name match.  This technique will be used to great effect soon.
+That is, the value of `env` was never changed neither as a result of `cons`ing new stuff, nor by taking the `cdr`.  I only highlight this point because it will become important in the implementation of the Lithp' evaluation function.  That is, when you're dealing with immutable values, you'll need ways to manage state changes.  One straight-forward way available to Lithp is the `label` special form, but a better way is via the call stack.  If you'll notice, in the implementation of `lookup` I used the call stack to manage the decreasingly smaller versions of the `context` as binding pairs were popped off in search of a name match.
 
 [^dpair]: This is not to be confused with a dotted-pair which is a cons cell with a value at the head and something other than a cons cell as its tail.  McCarthy's original Lisp did not support dotted pairs and neither do I.
 
@@ -909,7 +909,7 @@ However, for the moment I can use `pair` to build up a seed environment for quic
 
     ;;=> ((t t) (nil ()))
 
-That is, just like Lithp, Lithp' can start with the true and false values.  Now that the environment is out of the way, I can start implementing the Lithp' versions of the magnificent seven.
+That is, just like Lithp, Lithp' can start with the true and false values.  Now that the environment is out of the way, I can start implementing the Lithp' versions of the Magnificent Seven.
 
 ### The Magnificent Seven'
 
@@ -942,7 +942,7 @@ So that's pretty simple no?  What about a more complicated function?
 
 #### atom'
 
-The `quote'`, like the `quote` function is the only function that never evaluates its argument.  Because of this fact I decided to show its implementation first.  However, every other Lithp' function will need access to an evaluation function to operate correctly.  The function will be named simply `eval` and will operate, in principle, as follows:
+The `quote'` function, like Lithp's `quote` function is the only one that never evaluates its argument.  Because of this fact I decided to show its implementation first.  However, every other Lithp' function will need access to an evaluation function to operate correctly.  The function will be named simply `eval` and will operate, in principle, as follows:
 
 {lang="lisp"}
     
