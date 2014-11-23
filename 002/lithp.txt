@@ -68,9 +68,9 @@ I was taking advantage of lexical scope; something not available to McCarthy and
     (eval. 'a '((a 1) (a 2)))
     ;=> 1
 
-So I then implemented a simple REPL in Common Lisp that fed input into `eval.` and maintained the current environment list.  That was fun, but I wasn't sure that I was learning anything at all.  Eventually I decided to try to implement my own core environment for the magnificent 7 to try and get a feel for what it took to build a simple language up from scratch.  I suppose if I were a purist then I would have found an IBM 704, but  that would be totally insane. (email me if you have one that you'd like to sell for cheap)
+So I then implemented a simple REPL in Common Lisp that fed input into `eval.` and maintained the current environment list.  That was fun, but I wasn't sure that I was learning anything at all.  Eventually I decided to try to implement my own core environment for the magnificent 7 to try and get a feel for what it took to build a simple language up from scratch.  I suppose if I were a purist then I would have found an IBM 704, but that would be taking this exercise to the extreme. (email me if you have one that you'd like to sell for cheap)
 
-Anyway, the point of this is that I needed to start with creating an `Environment` that provided dynamic scoping, and the result is monstrosity [^mons] described herein.
+Anyway, minus a 704, I needed to start with creating an `Environment` that provided dynamic scoping, and the result is monstrosity [^mons] described herein.
 
 [^mons]: As far as Ur-Lisps go, this is not too much of a monstrosity if I do say so myself -- my [implementation of Lisp in 25 lines of Ruby](https://github.com/readevalprintlove/ulithp) however...
 
@@ -90,7 +90,7 @@ Anyway, the point of this is that I needed to start with creating an `Environmen
 	        else:
 	            self.level = 0
 
-The code fragment above sets up the dynamic binding environment by establishing a contextual binding map named `binds` that is a simple lookup from a `Symbol` type (described later) to a Lithp value type (e.g. a `Lambda` or `Symbol`).  In addition, the stack discipline of classical dynamic binding if is emulated through the `parent` link.  The parent link is simply an instance of another `Environment` or `None` if the constructed environment is considered a root binding context.
+The code fragment above sets up the dynamic binding environment by establishing a contextual binding map named `binds` that is a simple lookup from a `Symbol` type (described later) to a Lithp value type (e.g. a `Lambda` or `Symbol`).  In addition, the stack discipline of classical dynamic binding is emulated through the `parent` link.  The parent link is simply an instance of another `Environment` or `None` if the constructed environment is considered a root binding context.
 
 This dynamic stack discipline is on full display when one attempts to lookup a binding within an `Environment`:
 
