@@ -133,14 +133,14 @@ The `definedp` method just traverses the binding stack and returns `True` or `Fa
 
 ### Manipulating the dynamic environment stack
 
-You may recall that the constructor of the `Environment` class took a preexisting binding and assigned it as the `parent` link.  This, for all of its faults is a stack.  Likewise, the logic of the `#put` and `#get` methods ensured that these links were traversed when creating and looking up a binding.  Rather than manipulating the `Environment#parent` links directly via construction, I decided to create a convenience method `#push` that returns a new `Environment` instance given an existing instance.  Perhaps this is is unnecessary, but I personally find this approach a little cleaner.
+You may recall that the constructor of the `Environment` class took a preexisting binding and assigned it as the `parent` link.  This, for all of its faults is a stack.  Likewise, the logic of the `#put` and `#get` methods ensured that these links were traversed when creating and looking up a binding.  Rather than manipulating the `Environment#parent` links directly via construction, I decided to create a convenience method `#push` that returns a new `Environment` instance given an existing instance.  Perhaps this is unnecessary, but I personally find this approach a little cleaner.
 
 {lang="py"}
     
         def push(self, bnd=None):
 	        return Environment(self, bnd)
 
-Again, whenever a variable is created it's binding is pushed onto a global stack.  In this case, the stack is simulated through a chain of parent links.  So if you were to create the following:
+Again, whenever a variable is created it's binding is pushed onto a stack.  In this case, the stack is simulated through a chain of parent links.  So if you were to create the following:
 
 {lang="lisp"}
     
@@ -169,7 +169,7 @@ Of course, any time you see a push, a pop is soon to follow:
         def pop(self):
 	        return self.parent
 
-And that's it for the `Environment` class.  Looking back on this code it astonishes me how simple the dynamic environment scheme is — elegant almost.  Maintaining the current train of thought, I'd like to explore how the dynamic environment interacts with Lisp functions, both anonymous and not.
+And that's it for the `Environment` class.  Looking back on this code it astonishes me how simple the dynamic environment scheme is — elegant almost.  In an attempt to maintain this train of thought, I'd like to explore how the dynamic environment interacts with Lisp functions, both anonymous and not.
 
 fun.py
 ------
@@ -241,7 +241,7 @@ First exceptions, now a big honking global variable.  Not only that, but this is
 
 If you're like me when reading this for the first time you might be thinking "OMG" or maybe "ZOMG."  That reaction is pure and wise and never lose that sense of danger.  Having said that, it's important to know that when Lisp was originally created no one knew about any of the SOLID principles (not even McCarthy) nor had Wulf and Shaw penned their perennial classic *Global Variables Considered Harmful*.  Self-referential programming system had to be created by gum, and they weren't going to sit around and write themselves (yet).
 
-So I've pushed all of the bindings onto the global dynamic stack, so they're accessible to the body of the lambda, so why not go ahead and use them?  I will.  In fact, each form in the body is evaluated one by one, and the last determines the return value:
+I've pushed all of the bindings onto the global dynamic stack, so that they're accessible to the body of the lambda, so why not go ahead and use them?  I will.  In fact, each form in the body is evaluated one by one, and the last determines the return value:
 
 {lang="py"}
     
@@ -378,7 +378,7 @@ Of course, I don't use pointer arithmetic to implement cons cells...
         
 ...instead I define it in terms of a "sequence abstraction" (not shown herein).  This is a side-effect of a hope in going further with this implementation (e.g. into Linear Lisp), but as of now it's a bit heavy-weight for what is actually needed.  
 
-Interestingly, there are real implications to my design decision over McCarthy's.  That is, the Lithp sequences delegate insertion to the Python `List` implementation which internally is built on arrays (CPython anyway).  The arrays backing the `List`s are geometrically re-sized when new elements are added and thanks to some simple pointer arithmetic elements can be added to the end of a list simply.  Therefore, inserting new elements to a Python `List` is an amortized O(1) operation.  However, McCarthy's cons cell design and implementation guaranteed that insertions at the head of a list were O(1) operations.  That is, the very nature of a cons cell was such that it was composed of two parts: a data part (CAR) and a link part (CDR) which were just pointers.  Interestingly, the registers of the IBM 704 were twice the word size, so both the CAR and CDR parts fit into one register, split into "address" and "decrement" parts as mentioned above.
+Interestingly, there are real implications to my design decision over McCarthy's.  That is, the Lithp sequences delegate insertion to the Python `List` implementation which internally is built on arrays (CPython anyway).  The arrays backing the `List`s are geometrically re-sized when new elements are added and thanks to some simple pointer arithmetic elements can be added to the end of a list simply.  Therefore, inserting new elements to the head of a Python `List` is an amortized O(1) operation.  However, McCarthy's cons cell design and implementation guaranteed that insertions at the head of a list were O(1) operations.  That is, the very nature of a cons cell was such that it was composed of two parts: a data part (CAR) and a link part (CDR) which were just pointers.  As I hinted at earlier, the registers of the IBM 704 were twice the word size, so both the CAR and CDR parts fit into one register, split into "address" and "decrement" parts as mentioned above.
 
 The data part was the thing actually contained in the cell and the link part pointed to (potentially) another cons cell.  Therefore, to add an element to the head of a list required a cons cell allocation and a link manipulation that made it point to the head element of the host list.  However, in the Lithp implementation adding to the head of a List not only requires an occasional array size adjustment, but it also requires that elements in the existing array be shifted down the array one at a time to make room for the new element -- an O(n) operation.  
 
