@@ -1,27 +1,19 @@
-# Sakura
+# UrLISP
 
-One day the macrolyte approached the master macrologist
-Pi Mu and put forth a question:
+One day a macrolyte approached the master macrologist
+Pi Mu and quoted to him a poem:
 
-> Master, which Lisp is the greatest of all Lisps?
+> The voices of torrents 
+> are from one great LISP dialect, 
+> the lions of the hills 
+> are the pure body of McCarthy. 
 
-Pi Mu looked at the macrolyte and, in a low tone, told him 
-to meet him in the garden after the day's work was done and he would tell him the answer.
+Looking expectantly at Pi Mu the macrolyte exclaimed:
 
-After a long day's toil[^toil] the macrolyte did as Pi Mu instructed 
-and met him at the entryway to the humble garden.  He 
-immediately posed his question again:
+> Isn't that right?
 
-> Master, which Lisp is the greatest of all Lisps?
+Pi Mu looked at the macrolyte and, in a low tone, told him:
 
-In a careful manner Pi Mu then pointed at a patch of nearby sakura and said:
-
-> Look here at this patch of sakura.
->
-> What a tall one that one.
->
-> What a short one that one.
-
-The student was at once enlightened.
-
-[^toil]: Not nearly as rigorous as Pi Mu's however.
+> It is
+> ...
+> But it's a pity to say so.
