@@ -1,4 +1,4 @@
-Introduction - Ur-LISP
+Introduction - UrLISP
 ======================
 
 So you want to create a Lisp?  In this installment I'll talk a little about the creation of new Lisps.  
