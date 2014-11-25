@@ -140,7 +140,7 @@ You may recall that the constructor of the `Environment` class took a preexistin
         def push(self, bnd=None):
 	        return Environment(self, bnd)
 
-Again, whenever a variable is created it's binding is pushed onto a stack.  In this case, the stack is simulated through a chain of parent links.  So if you were to create the following:
+Again, whenever a variable is created its binding is pushed onto a stack.  In this case, the stack is simulated through a chain of parent links.  So if you were to create the following:
 
 {lang="lisp"}
     
