@@ -76,19 +76,19 @@ Anyway, minus a 704, I needed to start with creating an `Environment` that provi
 
 {lang="py"}
 
-  class Environment:
-      def __init__(self, par=None, bnd=None):
-          if bnd:
-              self.binds = bnd
-          else:
-              self.binds = {}
+    class Environment:
+        def __init__(self, par=None, bnd=None):
+            if bnd:
+                self.binds = bnd
+            else:
+                self.binds = {}
 
-          self.parent = par
+            self.parent = par
 
-          if par:
-              self.level = self.parent.level + 1
-          else:
-              self.level = 0
+            if par:
+                self.level = self.parent.level + 1
+            else:
+                self.level = 0
 
 The code fragment above sets up the dynamic binding environment by establishing a contextual binding map named `binds` that is a simple lookup from a `Symbol` type (described later) to a Lithp value type (e.g. a `Lambda` or `Symbol`).  In addition, the stack discipline of classical dynamic binding is emulated through the `parent` link.  The parent link is simply an instance of another `Environment` or `None` if the constructed environment is considered a root binding context.
 
@@ -96,13 +96,13 @@ This dynamic stack discipline is on full display when one attempts to lookup a b
 
 {lang="py"}
 
-      def get(self, key):
-          if key in self.binds:
-              return self.binds[key]
-          elif self.parent:
-              return self.parent.get(key)
-          else:
-              raise ValueError("Invalid symbol " + key)
+        def get(self, key):
+            if key in self.binds:
+                return self.binds[key]
+            elif self.parent:
+                return self.parent.get(key)
+            else:
+                raise ValueError("Invalid symbol " + key)
 
 The first check in a dynamic lookup is always to see if a binding exists in the current context.  However, ultimately retrieving a binding potentially requires the traversal of the parent link, as shown in the `elif` case of the lookup check.  You can see that this lookup descends down a chain of `Environment` instances until a binding is found, or the search bottoms-out at a root context.  This is the simplest possible binding scenario and naturally the one that McCarthy and his team settled on for the initial Lisp interpreter.
 
@@ -110,13 +110,13 @@ Now that you understand the lookup of a dynamic binding, the establishment of a 
 
 {lang="py"}
 
-      def set(self, key, value):
-          if key in self.binds:
-              self.binds[key] = value
-          elif self.parent:
-              self.parent.set(key,value)
-          else:
-              self.binds[key] = value
+        def set(self, key, value):
+            if key in self.binds:
+                self.binds[key] = value
+            elif self.parent:
+                self.parent.set(key,value)
+            else:
+                self.binds[key] = value
 
 That is, the process of creating a new binding is symmetric to the process of finding.  
 
@@ -124,10 +124,10 @@ There are or course useful functions that make the process of dealing with Envir
 
 {lang="py"}
 
-      def definedp(self, key):
-          if key in self.binds.keys():
-              return True
-          return False
+        def definedp(self, key):
+            if key in self.binds.keys():
+                return True
+            return False
 
 The `definedp` method just traverses the binding stack and returns `True` or `False` if the binding is found, or not, respectively.
 
@@ -137,8 +137,8 @@ You may recall that the constructor of the `Environment` class took a preexistin
 
 {lang="py"}
 
-      def push(self, bnd=None):
-          return Environment(self, bnd)
+        def push(self, bnd=None):
+            return Environment(self, bnd)
 
 Again, whenever a variable is created it's binding is pushed onto a stack.  In this case, the stack is simulated through a chain of parent links.  So if you were to create the following:
 
@@ -288,7 +288,7 @@ The `Lisp` class defines the Magnificent Seven in terms of the run-time environm
 
 {lang="py"}
 
-  class Lisp:
+    class Lisp:
 
 The Magnificent Seven are thus implemented as methods on this class.
 
@@ -313,10 +313,10 @@ The most expedient way to achieve this kind of equality was to simply delegate i
 
 {lang="py"}
 
-    def eq(self, env, args):
-        if args[0].eval(env) == args[1].eval(env):
-            return TRUE
-        return FALSE
+        def eq(self, env, args):
+            if args[0].eval(env) == args[1].eval(env):
+                return TRUE
+            return FALSE
 
 Re-evaluating on each equality check is less than ideal, but I'm not writing this on an IBM 704, so what me worry?  Sure, `eq` is cool and all and while implementing programming languages equality is non-trivial I'm not going to say much on the subject here.  However, I do have more to say on the matter of Lisp's original data abstraction -- the cons cell.
 
@@ -364,17 +364,17 @@ In Lithp, the car of an empty list is an error.  I actually have no idea if this
 
 {lang="py"}
 
-    def car(self, env, args):
-        if(len(args) > 1):
-            raise ValueError("""Wrong number of arguments,
-                       expected {0}, got {1}"""
-                  .format(1, len(args)))
+        def car(self, env, args):
+            if(len(args) > 1):
+                raise ValueError("""Wrong number of arguments,
+                                 expected {0}, got {1}"""
+                                 .format(1, len(args)))
 
 Of course, I don't use pointer arithmetic to implement cons cells...
 
 {lang="py"}
 
-        cell = args[0].eval(env)
+            cell = args[0].eval(env)
 
 ...instead I define it in terms of a "sequence abstraction" (not shown herein).  This is a side-effect of a hope in going further with this implementation (e.g. into Linear Lisp), but as of now it's a bit heavy-weight for what is actually needed.  
 
@@ -387,11 +387,11 @@ But I wouldn't be a programmer if I didn't needlessly abstract:
 
 {lang="py"}
 
-        if not isinstance(cell, Seq):
-            raise ValueError("""Function not valid on
-                             non-sequence type.""")
+            if not isinstance(cell, Seq):
+                raise ValueError("""Function not valid on
+                                 non-sequence type.""")
 
-        return cell.car()
+            return cell.car()
 
 The internal sequence type used by Lithp is a useful tool, but it loses much of the elegance found in the original cons cell abstraction.
 
@@ -420,28 +420,28 @@ The `cdr` function works as follows:
 {lang="lisp"}
 
     (cdr (quote (a b c)))
-  ;=> (b c)
+    ;=> (b c)
 
     (cdr (quote ()))
-  ;=> ()
+    ;=> ()
 
 The implementation of `cdr` is as follows:
 
 {lang="py"}
 
-    def cdr(self, env, args):
-        if(len(args) > 1):
-            raise ValueError("""Wrong number of arguments,
-                            expected {0}, got {1}"""
-                            .format(1, len(args)))
+        def cdr(self, env, args):
+            if(len(args) > 1):
+                raise ValueError("""Wrong number of arguments,
+                                 expected {0}, got {1}"""
+                                 .format(1, len(args)))
 
-        cell = args[0].eval(env)
+            cell = args[0].eval(env)
 
-        if not isinstance(cell, Seq):
-            raise ValueError("""Function not valid on
-                             non-sequence type.""")
+            if not isinstance(cell, Seq):
+                raise ValueError("""Function not valid on
+                                 non-sequence type.""")
 
-        return cell.cdr()
+            return cell.cdr()
 
 There's a lot of checking in this implementation, but the gist is that I eval the cons cell and take the tail of it.
 
@@ -478,16 +478,16 @@ I've agonized long and hard over whether or not to implement McCarthy Lisp as th
 
 {lang="py"}
 
-    def cons(self, env, args):
-        if(len(args) > 2):
-            raise ValueError("""Wrong number of arguments,
-                             expected {0}, got {1}"""
-                             .format(2, len(args)))
+        def cons(self, env, args):
+            if(len(args) > 2):
+                raise ValueError("""Wrong number of arguments,
+                                 expected {0}, got {1}"""
+                                 .format(2, len(args)))
 
-        first = args[0].eval(env)
-        second = args[1].eval(env)
+            first = args[0].eval(env)
+            second = args[1].eval(env)
 
-        return second.cons(first)
+            return second.cons(first)
 
 The eager nature of `cons` is apparent in that both the added element and the target are evaluated before the operation is performed.
 
@@ -516,20 +516,20 @@ Note that the null cons cell (i.e. empty list) is a falsey value in Lithp and th
 
 {lang="py"}
 
-    def atom(self, env, args):
-        if(len(args) > 1):
-            raise ValueError("""Wrong number of arguments,
-                             expected {0}, got {1}"""
-                             .format(1, len(args)))
+        def atom(self, env, args):
+            if(len(args) > 1):
+                raise ValueError("""Wrong number of arguments,
+                                 expected {0}, got {1}"""
+                                 .format(1, len(args)))
 
-        first = args[0].eval(env)
+            first = args[0].eval(env)
 
-        if first == FALSE:
-            return TRUE
-        elif isinstance(first, Symbol):
-            return TRUE
+            if first == FALSE:
+                return TRUE
+            elif isinstance(first, Symbol):
+                return TRUE
 
-        return FALSE
+            return FALSE
 
 Again, `atom` is another eager function in that it must evaluate its argument to determine if it's an atomic data structure.  However, the last of the Magnificent Seven, `label` disables evaluation in a way that's in the spirit of `cond`, but that operates towards a very different purpose.  But first, I'll cover a function called `quote` that provides a way to avoid evaluation altogether.
 
@@ -556,8 +556,8 @@ The implementation of `quote` couldn't be more simple:
 
 {lang="py"}
 
-    def quote(self, env, args):
-        return args[0]
+        def quote(self, env, args):
+            return args[0]
 
 The `quote`, function, while interesting in its own right, is mechanical to implement and directly supported by the Lithp infrastructure built so far.  However, a more interesting ... thing ... I'll not call it a function, is called `label`.
 
@@ -567,14 +567,14 @@ Notice that in the following implementation of `label` the first argument (hopef
 
 {lang="py"}
 
-    def label(self, env, args):
-        if(len(args) != 2):
-            raise ValueError("""Wrong number of arguments,
-                             expected {0}, got {1}"""
-                             .format(2, len(args)))
+        def label(self, env, args):
+            if(len(args) != 2):
+                raise ValueError("""Wrong number of arguments,
+                                 expected {0}, got {1}"""
+                                 .format(2, len(args)))
 
-        env.set(args[0].data, args[1].eval(env))
-        return env.get(args[0].data)
+            env.set(args[0].data, args[1].eval(env))
+            return env.get(args[0].data)
 
 Finally, the last of the Magnificent Seven is another lazy operator named `cond`.[^cond]
 
@@ -783,10 +783,10 @@ The following core.lisp file will, unlike Lithp on Python, be implemented on Lit
             eq [car [e]; CONS] → cons [eval [cadr [e]; a];
                                        eval [caddr [e]; a]];
             T → eval [cons [assoc [car [e]; a]; evlis [cdr [e]; a]]; a]];
-    eq [caar [e]; LABEL] → eval [cons [caddar [e]; cdr [e]];
-                                 cons [list [cadar [e]; car [e]; a]];
-    eq [caar [e]; LAMBDA] → eval [caddar [e];
-                                  append [pair [cadar [e]; evlis [cdr [e]; a]; a]]]
+        eq [caar [e]; LABEL] → eval [cons [caddar [e]; cdr [e]];
+                                     cons [list [cadar [e]; car [e]; a]];
+        eq [caar [e]; LAMBDA] → eval [caddar [e];
+                                      append [pair [cadar [e]; evlis [cdr [e]; a]; a]]]
 
 So on with it then.
 
@@ -923,7 +923,7 @@ Perhaps the simplest way to illustrate the modus operandi of the Lithp' implemen
 {lang="lisp"}
 
     (label quote' (lambda (qexpr)
-                   (car (cdr qexpr))))
+                    (car (cdr qexpr))))
 
 That is, `quote'` is just another function.  Like Lithp, the implementation of Lithp' will rely on functions that exist in the host language.  However, while Lithp's host was Python, the implementation of Lithp' will rely on Lithp as its host.  The function `quote'` above expects an s-expression of the form `(quote foo)` as its input and will return the second element of the expression outright, that is, without evaluation.  Actually, the `quote'` function doesn't care one bit if the first element of the s-expression is the symbol `quote`.  Instead, I'll leave it up to another piece of code to decide when a form should dispatch into `quote'`.  In any case, `quote'` works as follows:
 
@@ -987,8 +987,8 @@ The Lithp' equality operator will delegate down to the Lithp `eq` function after
 {lang="lisp"}
 
     (label eq' (lambda (eexpr ebinds)
-                (eq (eval (car (cdr eexpr)) ebinds)
-                    (eval (car (cdr (cdr eexpr))) ebinds))))
+                 (eq (eval (car (cdr eexpr)) ebinds)
+                     (eval (car (cdr (cdr eexpr))) ebinds))))
 
 The `eq'` takes the whole form, so I have to throw away the first operator.  There is no particular reason for doing it this way except that I will eventually place the delegation logic into `eval` function, separate from the handlers.  Therefore, the form that comes into the `eq'` function can be built up programmatically for the purpose of testing:
 
@@ -1060,8 +1060,8 @@ Once again, since the semantics of Lithp and Lithp' `cons` is the same, I just d
 {lang="lisp"}
 
     (label cons' (lambda (coexpr cobinds)
-                 (cons   (eval (car (cdr coexpr)) cobinds)
-                           (eval (car (cdr (cdr coexpr))) cobinds))))
+                   (cons (eval (car (cdr coexpr)) cobinds)
+                         (eval (car (cdr (cdr coexpr))) cobinds))))
 
 And test directly:
 
@@ -1097,7 +1097,7 @@ The `eval-bind` function is the first recursive Lithp function that I've shown. 
 
     (label cond-ex (quote (((eq a (quote (x y z))) (quote first-branch))
                            ((eq a nil)             (quote second-branch))
-                          (t                     (quote default-case)))))
+                           (t                      (quote default-case)))))
 
 Using the form above, I can exercise `cond'` by changing the binding of the symbol `a`, which serves as the basis for two of the three `cond` conditions:
 
@@ -1253,7 +1253,7 @@ The keystone of the Lithp' implementation is the `lambda` evaluation logic.  As 
 
     ;; Lambda handling
     ((eq (car (car expr)) (quote lambda))
-    (eval (car (cdr (cdr (car expr))))
+     (eval (car (cdr (cdr (car expr))))
            (append (zip (car (cdr (car expr))) (eval-args (cdr expr) binds))
                    binds)))
 
@@ -1304,7 +1304,7 @@ Now, to build up a context for use in resolving the body of the `lambda` I need 
 
     (label eval-args (lambda (args binds)
                        (cond ((null args) nil)
-                              (t (cons (eval  (car args) binds)
+                              (t (cons (eval (car args) binds)
                                        (eval-args (cdr args) binds))))))
 
 In the core environment `env'` the names `(t nil)` will evaluated as such:
